@@ -1,0 +1,161 @@
+.trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+
+  width: 100%;
+  height: 2.25rem;
+  padding: 0 0.75rem;
+
+  color: var(--ui-fg);
+  background: var(--ui-bg);
+
+  border: 1px solid var(--ui-border);
+  border-radius: var(--ui-radius-md);
+
+  font-family: var(--ui-font-sans);
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+
+  cursor: pointer;
+  outline: none;
+
+  transition:
+    border-color 120ms ease,
+    background-color 120ms ease;
+}
+
+.trigger:hover:not([data-disabled]) {
+  border-color: var(--ui-border-hover);
+}
+
+.trigger:focus-visible {
+  border-color: var(--ui-focus);
+  box-shadow: 0 0 0 1px var(--ui-focus);
+}
+
+.trigger[data-disabled] {
+  color: var(--ui-fg-disabled);
+  background: var(--ui-surface);
+
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.value {
+  overflow: hidden;
+
+  min-width: 0;
+
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.value[data-placeholder] {
+  color: var(--ui-fg-muted);
+}
+
+.icon {
+  display: flex;
+  flex: 0 0 auto;
+
+  color: var(--ui-fg-muted);
+}
+
+.icon svg {
+  width: 1rem;
+  height: 1rem;
+
+  transition: transform 120ms ease;
+}
+
+.trigger[data-popup-open] .icon svg {
+  transform: rotate(180deg);
+}
+
+.positioner {
+  z-index: 50;
+}
+
+.popup {
+  min-width: var(--anchor-width);
+  max-height: min(20rem, var(--available-height));
+
+  padding: 0.25rem;
+
+  overflow-y: auto;
+
+  color: var(--ui-fg);
+  background: var(--ui-surface);
+
+  border: 1px solid var(--ui-border);
+  border-radius: var(--ui-radius-md);
+
+  box-shadow: 0 4px 12px rgb(0 0 0 / 0.08);
+
+  outline: none;
+
+  transform-origin: var(--transform-origin);
+
+  transition:
+    opacity 100ms ease,
+    transform 100ms ease;
+}
+
+.popup[data-starting-style],
+.popup[data-ending-style] {
+  opacity: 0;
+  transform: scale(0.98);
+}
+
+.item {
+  position: relative;
+
+  display: flex;
+  align-items: center;
+
+  min-height: 2rem;
+  padding: 0.375rem 2rem 0.375rem 0.5rem;
+
+  border-radius: var(--ui-radius-sm);
+
+  font-family: var(--ui-font-sans);
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+
+  cursor: default;
+  outline: none;
+  user-select: none;
+}
+
+.item[data-highlighted] {
+  background: var(--ui-surface-hover);
+}
+
+.item[data-disabled] {
+  color: var(--ui-fg-disabled);
+  pointer-events: none;
+}
+
+.itemText {
+  overflow: hidden;
+
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.indicator {
+  position: absolute;
+  right: 0.5rem;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.indicator svg {
+  width: 0.875rem;
+  height: 0.875rem;
+}

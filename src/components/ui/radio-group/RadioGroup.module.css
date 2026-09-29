@@ -1,0 +1,94 @@
+.root {
+  display: grid;
+  gap: 8px;
+}
+
+.item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid var(--ui-border);
+  border-radius: var(--ui-radius-md);
+  background: var(--ui-surface);
+  cursor: pointer;
+  user-select: none;
+}
+
+.item:hover {
+  border-color: var(--ui-border-hover);
+  background: var(--ui-surface-hover);
+}
+
+.item:has(.radio[data-checked]) {
+  border-color: var(--ui-primary);
+}
+
+.disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.disabled:hover {
+  border-color: var(--ui-border);
+  background: var(--ui-surface);
+}
+
+.radio {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 16px;
+  width: 16px;
+  height: 16px;
+  margin-top: 2px;
+  padding: 0;
+  border: 1px solid var(--ui-border);
+  border-radius: 999px;
+  background: var(--ui-surface);
+  cursor: inherit;
+}
+
+.radio:hover {
+  border-color: var(--ui-border-hover);
+}
+
+.radio[data-checked] {
+  border-color: var(--ui-primary);
+}
+
+.radio:focus-visible {
+  outline: 2px solid var(--ui-focus);
+  outline-offset: 2px;
+}
+
+.radio:disabled {
+  cursor: default;
+}
+
+.indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--ui-primary);
+}
+
+.content {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.label {
+  color: var(--ui-fg);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+}
+
+.description {
+  color: var(--ui-muted);
+  font-size: 12px;
+  line-height: 17px;
+}

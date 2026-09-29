@@ -1,0 +1,138 @@
+.root {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  border: 1px solid transparent;
+  border-radius: var(--ui-radius-md);
+
+  font-family: var(--ui-font-sans);
+  font-weight: 500;
+  line-height: 1;
+
+  cursor: pointer;
+  user-select: none;
+
+  transition:
+    background-color 100ms ease,
+    border-color 100ms ease,
+    color 100ms ease;
+}
+
+/* Sizes */
+
+.sm {
+  height: 28px;
+  padding-inline: 10px;
+  gap: 5px;
+
+  font-size: 12px;
+}
+
+.md {
+  height: 36px;
+  padding-inline: 14px;
+  gap: 6px;
+
+  font-size: 14px;
+}
+
+.lg {
+  height: 44px;
+  padding-inline: 18px;
+  gap: 8px;
+
+  font-size: 15px;
+}
+
+/* Primary */
+
+.primary {
+  background: var(--ui-primary);
+  color: var(--ui-primary-fg);
+}
+
+.primary:hover {
+  background: var(--ui-primary-hover);
+}
+
+.primary:active {
+  background: var(--ui-primary-active);
+}
+
+/* Secondary */
+
+.secondary {
+  background: var(--ui-surface);
+  border-color: var(--ui-border);
+  color: var(--ui-fg);
+}
+
+.secondary:hover {
+  background: var(--ui-surface-hover);
+}
+
+.secondary:active {
+  background: var(--ui-surface-active);
+}
+
+/* Ghost */
+
+.ghost {
+  background: transparent;
+  color: var(--ui-fg);
+}
+
+.ghost:hover {
+  background: var(--ui-surface-hover);
+}
+
+.ghost:active {
+  background: var(--ui-surface-active);
+}
+
+/* States */
+
+.root:focus-visible {
+  outline: 2px solid var(--ui-focus);
+  outline-offset: 2px;
+}
+
+.root[data-disabled] {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.root > svg {
+  flex-shrink: 0;
+}
+
+.sm > svg {
+  width: 14px;
+  height: 14px;
+}
+
+.md > svg {
+  width: 16px;
+  height: 16px;
+}
+
+.lg > svg {
+  width: 18px;
+  height: 18px;
+}
+
+.iconOnly {
+  padding-inline: 0;
+  aspect-ratio: 1;
+}
+
+.root[aria-busy="true"] > svg:first-child {
+  animation: spin 700ms linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

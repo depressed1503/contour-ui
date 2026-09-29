@@ -1,0 +1,28 @@
+.popup {
+  max-width: 20rem;
+  padding: 0.375rem 0.5rem;
+
+  color: var(--ui-primary-fg);
+  background: var(--ui-primary);
+
+  border-radius: var(--ui-radius-sm);
+
+  font-family: var(--ui-font-sans);
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1rem;
+
+  box-shadow: 0 2px 8px rgb(0 0 0 / 0.12);
+
+  transform-origin: var(--transform-origin);
+
+  transition:
+    opacity 100ms ease,
+    transform 100ms ease;
+}
+
+.popup[data-starting-style],
+.popup[data-ending-style] {
+  opacity: 0;
+  transform: scale(0.96);
+}
