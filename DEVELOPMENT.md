@@ -374,3 +374,46 @@ plus definition/data-source helper types.
 - test custom validation;
 - test `field` mapping in both detail and mutation payload directions;
 - update `README.md` and this file when the extension model changes.
+
+## Building and packing the UI library
+
+The repository is both a local demo project and an npm library source. The npm package entry point is `src/index.ts`.
+
+Library build pipeline:
+
+```text
+src/index.ts
+    ↓
+tsc -p tsconfig.lib.json
+    ↓
+dist/*.d.ts
+
+src/index.ts
+    ↓
+Vite library mode
+    ↓
+dist/index.js + dist/styles.css
+    ↓
+npm pack
+    ↓
+company-ui-<version>.tgz
+```
+
+Relevant files:
+
+- `src/index.ts` — public root API of `@company/ui`.
+- `vite.config.ts` — Vite library-mode bundle configuration.
+- `tsconfig.lib.json` — declaration-only TypeScript build for package consumers.
+- `package.json` — npm exports, peer dependencies, packaged files and `pack:local` script.
+- `src/components/data-table/index.ts` — public API boundary of DataTable.
+- `src/components/ui/*/index.ts` — public API boundary of each UI primitive.
+
+To create the package:
+
+```bash
+npm run pack:local
+```
+
+Before adding a new public component, make sure its component props/types are exported from the component directory `index.ts`, then re-export the directory from `src/index.ts`.
+
+React and ReactDOM are peer dependencies so a consuming application uses its own React runtime. Base UI, TanStack Form, TanStack Table and Lucide are regular dependencies and are installed with the package. They are externalized from the generated JavaScript bundle to avoid embedding duplicate copies in `dist/index.js`.

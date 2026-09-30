@@ -1,7 +1,27 @@
-import react from '@vitejs/plugin-react'
-import { defineConfig } from 'vite'
+import { resolve } from "node:path";
+import react from "@vitejs/plugin-react";
+import { defineConfig } from "vite";
 
-// https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
-})
+
+  build: {
+    lib: {
+      entry: resolve(__dirname, "src/index.ts"),
+      formats: ["es"],
+      fileName: "index",
+      cssFileName: "styles",
+    },
+
+    rollupOptions: {
+      external: [
+        /^react(?:\/.*)?$/,
+        /^react-dom(?:\/.*)?$/,
+        /^@base-ui\/react(?:\/.*)?$/,
+        /^@tanstack\/react-form(?:\/.*)?$/,
+        /^@tanstack\/react-table(?:\/.*)?$/,
+        /^lucide-react(?:\/.*)?$/,
+      ],
+    },
+  },
+});
