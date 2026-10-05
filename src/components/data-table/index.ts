@@ -1,11 +1,16 @@
 export { DataTable } from "./DataTable";
 
-export {
-  createCrudApi,
-  DataTableRequestError,
-} from "./createCrudApi";
+export { createCrudApi } from "./createCrudApi";
 
 export { defineDataTable } from "./defineDataTable";
+
+export type {
+  CreateCrudApiOptions,
+  CrudAxiosConfig,
+  CrudAxiosLike,
+  CrudEndpoints,
+  CrudId,
+} from "./createCrudApi";
 
 export type {
   DataTableBulkAction,

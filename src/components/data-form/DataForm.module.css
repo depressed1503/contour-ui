@@ -1,0 +1,72 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+.fields {
+  display: grid;
+  grid-template-columns: repeat(var(--data-form-columns, 1), minmax(0, 1fr));
+  gap: 16px;
+}
+
+.fieldSlot {
+  min-width: 0;
+}
+
+.checkboxRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  color: var(--ui-fg);
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.after {
+  min-width: 0;
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+  padding-top: 4px;
+}
+
+.status {
+  color: var(--ui-muted);
+  font-size: 14px;
+}
+
+.errorBox,
+.successBox {
+  padding: 10px 12px;
+  border: 1px solid var(--ui-border);
+  border-radius: var(--ui-radius-md);
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.errorBox {
+  color: var(--ui-danger);
+  background: var(--ui-danger-surface);
+}
+
+.successBox {
+  color: var(--ui-success);
+  background: var(--ui-success-surface);
+}
+
+@media (max-width: 720px) {
+  .fields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .fieldSlot {
+    grid-column: span 1 !important;
+  }
+}

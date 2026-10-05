@@ -27,7 +27,7 @@
     "dev": "vite",
     "typecheck": "tsc -b",
     "build:types": "tsc -p tsconfig.lib.json",
-    "build:lib": "npm run build:types && vite build",
+    "build:lib": "vite build && npm run build:types",
     "build": "npm run build:lib",
     "pack:local": "npm run build:lib && npm pack",
     "lint": "eslint .",

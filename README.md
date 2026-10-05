@@ -1,339 +1,195 @@
-# Contour UI DataTable
+# Contour UI
 
-`DataTable` is a declarative server-driven table for internal CRUD pages. The consumer describes columns, data access and optional editor behavior once, then renders:
+Internal React UI kit with declarative `DataTable` and `DataForm` for CRUD-heavy applications.
 
-```tsx
-<DataTable definition={assetGroupTagsTable} />
-```
+The main goal is to let application developers describe backend fields and UI behavior in configuration instead of rebuilding forms, filters, pagination and dialogs for every endpoint.
 
-The component owns pagination, sorting, filters, URL state, column visibility, row selection, bulk actions and generated Create/Edit/Delete UI. Application-specific behavior stays in the definition or in explicit extension points.
+## Install from local package
 
-## Install
+Build and pack the library:
 
 ```bash
 npm install
+npm run pack:local
 ```
 
-The table uses React, Base UI, TanStack Table and TanStack Form.
+Install the generated package in another application:
 
-## Quick start
+```bash
+npm install ./company-ui-0.1.0.tgz
+```
+
+Import the library styles once in the host application, usually in `main.tsx`:
+
+```ts
+import "@company/ui/styles.css";
+```
+
+## Public UI components
+
+The root package exports the existing Contour UI primitives:
 
 ```tsx
 import {
-  DataTable,
-  createCrudApi,
-  defineDataTable,
-} from "./components/data-table";
+  Badge,
+  Button,
+  Checkbox,
+  Dialog,
+  Field,
+  Input,
+  Menu,
+  Popover,
+  RadioGroup,
+  Select,
+  Switch,
+  Table,
+  Textarea,
+  Tooltip,
+} from "@company/ui";
+```
 
-type AssetGroupTag = {
+## Axios and CRUD data access
+
+Contour UI does not import your application-specific Axios config. Pass the Axios instance created by the host application into `createCrudApi`.
+
+This means your existing `baseURL`, CSRF settings, cookies and interceptors remain application-owned.
+
+```ts
+import Axios from "@/api/axiosConfig";
+import { createCrudApi } from "@company/ui";
+
+type Asset = {
   id: number;
-  text: string;
-  description: string;
-  fontColor: string;
-  backgroundColor: string;
+  name: string;
+  status: string;
 };
 
-const assetGroupTagsApi = createCrudApi<AssetGroupTag>({
-  endpoint: "/api/asset-group-tags/",
-});
-
-const assetGroupTagsTable = defineDataTable<AssetGroupTag>({
-  id: "asset-group-tags",
-  datasource: assetGroupTagsApi,
-  getRowId: (row) => String(row.id),
-  selection: true,
-
-  columns: {
-    text: {
-      label: "Text",
-      sortable: true,
-      filter: "text",
-    },
-    description: {
-      label: "Description",
-      filter: "text",
-    },
-    fontColor: {
-      label: "Font color",
-      sortField: "font_color",
-    },
-    backgroundColor: {
-      label: "Background color",
-      sortField: "background_color",
-    },
-  },
-
-  editor: {
-    entityLabel: "tag",
-    getRowLabel: (row) => row.text,
-    create: true,
-    edit: true,
-    delete: true,
-    fields: {
-      text: {
-        type: "text",
-        label: "Text",
-        required: true,
-      },
-      description: {
-        type: "textarea",
-        label: "Description",
-      },
-      fontColor: {
-        type: "text",
-        label: "Font color",
-      },
-      backgroundColor: {
-        type: "text",
-        label: "Background color",
-      },
-    },
+export const assetApi = createCrudApi<Asset>({
+  axios: Axios,
+  endpoints: {
+    list: "assets/",
+    detail: (id) => `assets/${id}/`,
   },
 });
-
-export function AssetGroupTagsPage() {
-  return <DataTable definition={assetGroupTagsTable} />;
-}
 ```
 
-## DRF contract
-
-`createCrudApi()` expects the standard collection/detail routes:
+With an Axios `baseURL` such as:
 
 ```text
-GET    /api/tags/
-POST   /api/tags/
-GET    /api/tags/:id/
-PATCH  /api/tags/:id/
-DELETE /api/tags/:id/
+https://host/sm_portal_api/
 ```
 
-List responses use the standard DRF pagination shape:
-
-```json
-{
-  "count": 120,
-  "next": "...",
-  "previous": null,
-  "results": []
-}
-```
-
-Updates use `PATCH`.
-
-The adapter sends `Accept: application/json` and sends JSON for create/update. Additional headers can be supplied through `createCrudApi({ headers })`.
-
-## Columns
-
-Simple column:
-
-```tsx
-columns: {
-  name: "Name",
-}
-```
-
-Configured column:
-
-```tsx
-columns: {
-  status: {
-    label: "Status",
-    sortable: true,
-    filter: {
-      type: "select",
-      options: [
-        { value: "active", label: "Active" },
-        { value: "archived", label: "Archived" },
-      ],
-    },
-    cell: ({ value }) => <Badge>{value}</Badge>,
-  },
-}
-```
-
-Supported filter types:
-
-- `text`
-- `select`
-- `multiselect`
-- `number`
-- `number-range`
-- `date`
-- `datetime`
-- `date-range`
-- `datetime-range`
-
-For sorting, use `sortField` when the backend field differs from the frontend property:
-
-```tsx
-createdAt: {
-  label: "Created",
-  sortable: true,
-  sortField: "created_at",
-}
-```
-
-For filters, set `field` on the filter config:
-
-```tsx
-createdAt: {
-  label: "Created",
-  filter: {
-    type: "date",
-    field: "created_at",
-  },
-}
-```
-
-The browser URL keeps frontend column ids. Mapping to backend field names happens only before the datasource call.
-
-## Pagination and URL state
-
-```tsx
-pagination: {
-  defaultPageSize: 25,
-  pageSizeOptions: [25, 50, 100],
-}
-```
-
-The table stores list state in the URL:
+use relative endpoint paths without a leading slash:
 
 ```text
-?page=2&page_size=25&ordering=-createdAt&status=active
+assets/
+assets/42/
 ```
 
-Column visibility preferences are stored per table id in `localStorage`.
+`createCrudApi` supports:
 
-## Selection
-
-Enable row selection with:
-
-```tsx
-selection: true,
-getRowId: (row) => String(row.id),
+```text
+GET    list
+GET    detail
+POST   create
+PATCH  update
+DELETE delete
 ```
 
-`getRowId` is required for selection and for generated Edit/Delete row actions.
-
-The header checkbox selects or deselects the current page. Selection is represented by stable ids.
-
-## Bulk actions
-
-Bulk actions are always available through the `Actions` menu. When an action is chosen, the user selects either:
-
-- selected records;
-- all records matching the current committed filters.
-
-The action receives one of these targets:
+Custom routes can be supplied:
 
 ```ts
-{ ids: ["1", "2"] }
-```
-
-or:
-
-```ts
-{
-  filters: [
-    {
-      id: "status",
-      operator: "include",
-      value: "active",
-    },
-  ],
-}
-```
-
-Example:
-
-```tsx
-bulkActions: [
-  {
-    id: "archive",
-    label: "Archive",
-    onAction: async ({ target, signal }) => {
-      await archiveAssets(target, signal);
-    },
+createCrudApi<Asset>({
+  axios: Axios,
+  endpoints: {
+    list: "assets/",
+    detail: (id) => `assets/${id}/`,
+    create: "assets/create/",
+    update: (id) => `assets/${id}/edit/`,
+    delete: (id) => `assets/${id}/remove/`,
   },
-]
+});
 ```
 
-### Bulk action with extra fields
+The same datasource can be reused by both `DataTable` and `DataForm`. This is the preferred pattern: Axios is injected once into the datasource factory, not passed through every UI component.
 
-```tsx
-bulkActions: [
-  {
-    id: "change-status",
-    label: "Change status",
-    confirmLabel: "Apply",
-    initialValues: {
-      status: "active",
-    },
-    renderFields: ({ values, setValues }) => {
-      const form = values as { status: string };
+## DataForm
 
-      return (
-        <Field>
-          <Field.Label>Status</Field.Label>
-          <Select
-            items={statusOptions}
-            value={form.status}
-            onValueChange={(status) => {
-              if (status) {
-                setValues({ ...form, status });
-              }
-            }}
-          >
-            ...
-          </Select>
-        </Field>
-      );
-    },
-    onAction: async ({ target, values, signal }) => {
-      await changeStatus(target, values, signal);
-    },
-  },
-]
+`DataForm` is a generated form driven by a field definition.
+
+Supported modes:
+
+```text
+create
+edit
+view
 ```
 
-By default a successful bulk action clears selection and refreshes the table. Set `clearSelectionOnSuccess: false` or `refreshOnSuccess: false` to change that behavior.
+For `edit` and `view`, the form loads detail data with `datasource.getOne(id)`.
 
-## Generated CRUD editor
-
-Enable generated CRUD UI with `editor`:
+### Basic definition
 
 ```tsx
-editor: {
-  entityLabel: "asset",
-  getRowLabel: (row) => row.name,
-  create: true,
-  edit: true,
-  delete: true,
+import {
+  DataForm,
+  defineDataForm,
+} from "@company/ui";
+
+const assetForm = defineDataForm<Asset>({
+  id: "asset-form",
+  datasource: assetApi,
+
   fields: {
     name: {
       type: "text",
       label: "Name",
       required: true,
     },
+
+    status: {
+      type: "select",
+      label: "Status",
+      options: [
+        { value: "active", label: "Active" },
+        { value: "archived", label: "Archived" },
+      ],
+    },
   },
-}
+});
 ```
 
-The table then adds:
+Create:
 
-- a Create button to the toolbar;
-- an Edit item to each row action menu;
-- a Delete item with a Yes/No confirmation dialog;
-- `GET /:id/` before opening an Edit form;
-- POST/PATCH/DELETE mutations through the datasource;
-- refresh after a successful mutation.
+```tsx
+<DataForm
+  definition={assetForm}
+  mode="create"
+/>
+```
 
-There is no optimistic update in the first version.
+Edit:
 
-### Editor field types
+```tsx
+<DataForm
+  definition={assetForm}
+  mode="edit"
+  id={42}
+/>
+```
 
-Supported field types:
+View:
+
+```tsx
+<DataForm
+  definition={assetForm}
+  mode="view"
+  id={42}
+/>
+```
+
+## DataForm field types
+
+Built-in field types:
 
 ```text
 text
@@ -348,14 +204,14 @@ datetime
 
 Example:
 
-```tsx
+```ts
 fields: {
-  name: {
+  title: {
     type: "text",
-    label: "Name",
+    label: "Title",
     required: true,
     minLength: 2,
-    maxLength: 80,
+    maxLength: 100,
   },
 
   description: {
@@ -364,298 +220,265 @@ fields: {
     rows: 5,
   },
 
-  priority: {
+  amount: {
     type: "number",
-    label: "Priority",
-    min: 1,
-    max: 5,
+    label: "Amount",
+    min: 0,
+    step: 1,
   },
 
-  status: {
+  companyId: {
     type: "select",
-    label: "Status",
-    options: statusOptions,
+    label: "Company",
+    field: "company_id",
+    options: companyItems,
   },
 
   channels: {
     type: "multiselect",
     label: "Channels",
-    options: channelOptions,
+    options: channelItems,
   },
 
-  featured: {
+  enabled: {
     type: "checkbox",
-    label: "Featured",
+    label: "Enabled",
   },
 
-  publishedAt: {
+  startDate: {
     type: "date",
-    label: "Published",
+    label: "Start date",
   },
 
-  lastSeenAt: {
+  runAt: {
     type: "datetime",
-    label: "Last seen",
+    label: "Run at",
   },
 }
 ```
 
-### Backend field names
+### Backend field mapping
 
-Editor keys are frontend names. Unless `field` is provided, request/detail field names are converted to snake_case automatically:
+The frontend definition key is converted to snake_case by default:
 
 ```text
-assetsCount -> assets_count
-lastSeenAt  -> last_seen_at
+backgroundColor -> background_color
+lastSeenAt      -> last_seen_at
 ```
 
-Override explicitly when the backend name is not a simple snake_case conversion:
+Use `field` when the backend name is different:
 
-```tsx
+```ts
 company: {
   type: "select",
   label: "Company",
   field: "company_id",
-  options: companyOptions,
+  options: companyItems,
 }
 ```
 
-For Edit, detail data is first read by the backend field name and then by the frontend key as a fallback.
+### Conditional fields
 
-### Create-only, edit-only and hidden fields
+`hidden` and `disabled` may be booleans or functions of current form values:
 
-```tsx
-fields: {
-  password: {
-    type: "text",
-    label: "Password",
-    createOnly: true,
-  },
-  immutableCode: {
-    type: "text",
-    label: "Code",
-    editOnly: true,
-  },
-  internalFlag: {
-    type: "checkbox",
-    label: "Internal",
-    hidden: true,
-  },
-}
+```ts
+description: {
+  type: "textarea",
+  label: "Description",
+  hidden: ({ values }) => values.featured !== true,
+},
+
+channels: {
+  type: "multiselect",
+  label: "Channels",
+  options: channelItems,
+  disabled: ({ values }) => values.status === "archived",
+},
 ```
+
+### Layout
+
+```ts
+const definition = defineDataForm({
+  id: "example",
+  datasource,
+  layout: {
+    columns: 2,
+  },
+  fields: {
+    name: {
+      type: "text",
+      label: "Name",
+      span: 2,
+    },
+    status: {
+      type: "select",
+      label: "Status",
+      options: statusItems,
+    },
+  },
+});
+```
+
+On narrow screens the grid collapses to one column automatically.
 
 ### Validation
 
-Built-in rules include:
+Built-in validation includes `required`, string length and numeric `min/max`.
 
-- `required`
-- `minLength`
-- `maxLength`
-- `min`
-- `max`
+Use `validate` for business-specific synchronous validation:
 
-Add custom synchronous validation with `validate`:
+```ts
+priority: {
+  type: "number",
+  label: "Priority",
+  required: true,
+  min: 1,
+  max: 5,
+  validate: (value) =>
+    typeof value === "number" && Number.isInteger(value)
+      ? undefined
+      : "Priority must be a whole number.",
+}
+```
+
+### Parse and serialize
+
+Use `parse` to transform detail data into form state and `serialize` to transform form state into the backend payload.
+
+```ts
+price: {
+  type: "number",
+  label: "Price",
+
+  parse: (backendValue) =>
+    Number(backendValue) / 100,
+
+  serialize: (formValue) =>
+    Number(formValue) * 100,
+}
+```
+
+### Custom field renderer
+
+A field can replace its default control:
 
 ```tsx
 priority: {
   type: "number",
   label: "Priority",
-  validate: (value, { values, mode }) => {
-    if (typeof value === "number" && Number.isInteger(value)) {
-      return undefined;
-    }
+  min: 1,
+  max: 5,
 
-    return "Priority must be a whole number.";
-  },
+  render: ({ value, disabled, setValue }) => (
+    <Input
+      type="range"
+      min={1}
+      max={5}
+      value={Number(value ?? 3)}
+      disabled={disabled}
+      onChange={(event) =>
+        setValue(Number(event.target.value))
+      }
+    />
+  ),
 }
 ```
 
-Return `undefined` when valid or an error string when invalid.
-
-Server errors are currently displayed as a generic request-level error. Field-level DRF error mapping is intentionally not part of this version yet.
-
-### Custom field rendering
-
-Use `renderField` when one generated field needs a custom control:
+Use `renderAfter` for previews or additional blocks that depend on the whole form:
 
 ```tsx
-editor: {
-  fields: {
-    backgroundColor: {
-      type: "text",
-      label: "Background color",
-    },
-  },
-
-  renderField: {
-    backgroundColor: ({ value, setValue, error }) => (
-      <ColorPicker
-        value={String(value ?? "")}
-        invalid={Boolean(error)}
-        onChange={setValue}
-      />
-    ),
-  },
-}
-```
-
-The DataTable still owns the label, description, validation error and form lifecycle.
-
-Use `renderAfter` for previews or additional blocks:
-
-```tsx
-renderAfter: ({ mode, values, row }) => (
-  <TagPreview values={values} />
+renderAfter: ({ values }) => (
+  <Preview values={values} />
 )
 ```
 
-## Custom row actions
+### Server errors
 
-Add application-specific items to the row menu without replacing generated Edit/Delete actions:
+`DataForm` understands DRF-style error bodies such as:
+
+```json
+{
+  "name": ["This field is required."],
+  "company_id": ["Invalid company."],
+  "non_field_errors": ["Invalid combination."],
+  "detail": "Request failed."
+}
+```
+
+Errors for known backend fields are shown next to the corresponding form field. `detail`, `non_field_errors`, and unknown keys are shown as form-level errors.
+
+The parser also recognizes Axios errors through `error.response.data`.
+
+## DataTable
+
+The existing table API remains definition-driven:
 
 ```tsx
-rowActions: [
-  {
-    id: "duplicate",
-    label: "Duplicate",
-    onAction: async (row, { refresh }) => {
-      await duplicateAsset(row.id);
-      refresh();
+const assetTable = defineDataTable<Asset>({
+  id: "assets",
+  datasource: assetApi,
+  getRowId: (row) => String(row.id),
+  selection: true,
+
+  columns: {
+    name: {
+      label: "Name",
+      sortable: true,
+      filter: "text",
     },
   },
-  {
-    id: "disable",
-    label: "Disable",
-    variant: "danger",
-    disabled: (row) => row.status === "archived",
-    onAction: async (row) => {
-      await disableAsset(row.id);
-    },
-  },
-]
+});
+
+<DataTable definition={assetTable} />
 ```
 
-For custom row actions, the application owns any additional confirmation/modal UI it needs.
+The table supports server pagination, sorting, filters, URL state, column visibility, selection, bulk actions, row actions and generated CRUD dialogs.
 
-## Using a custom datasource
+### Shared form fields with DataTable editor
 
-You do not have to use `createCrudApi`.
+`DataTable.editor.fields` and standalone `DataForm.fields` now use the same field definition model.
 
-At minimum a datasource implements `getList`:
+That means a new generic field type should be implemented once in the DataForm field layer and then becomes available to generated DataTable editors as well.
 
-```tsx
-const datasource: DataTableDataSource<User> = {
-  async getList(query, signal) {
-    return {
-      items: [],
-      count: 0,
-    };
-  },
-};
-```
+Legacy `editor.renderField` remains available for compatibility, but new definitions should prefer field-level `render`.
 
-Generated CRUD features additionally require the corresponding methods:
+## Playground
 
-```ts
-getOne(id, signal)
-create(payload, signal)
-update(id, payload, signal)
-delete(id, signal)
-```
-
-This keeps the DataTable independent from DRF even though `createCrudApi` is optimized for the team's current DRF API.
-
-## Error behavior
-
-`createCrudApi` throws `DataTableRequestError` for non-2xx responses. It exposes:
-
-```ts
-error.status
-error.body
-error.message
-```
-
-If the backend returns `{ "detail": "..." }`, `detail` becomes the error message. Other backend validation shapes are retained in `error.body` but are not mapped to fields yet.
-
-## Public API vs internal components
-
-Consumers should import from:
-
-```tsx
-import {
-  DataTable,
-  createCrudApi,
-  defineDataTable,
-} from "./components/data-table";
-```
-
-Do not import `DataTableEngine`, editor dialogs or internal hooks directly from application code. Those are implementation details and may change while the public definition API stays stable.
-
-For maintainers and extension recipes, see [`DEVELOPMENT.md`](./DEVELOPMENT.md).
-
-## Local package build (.tgz)
-
-The UI kit can be built and packed as a local npm package.
+Run the local playground:
 
 ```bash
-npm install
+npm run dev
+```
+
+`src/App.tsx` contains examples of the existing Contour UI primitives, `DataForm` in Create/Edit/View modes, conditional fields, validation, custom rendering, and the existing `DataTable` demo.
+
+## Building the npm package
+
+The library entry point is `src/index.ts`.
+
+Build:
+
+```bash
+npm run build:lib
+```
+
+Pack:
+
+```bash
 npm run pack:local
 ```
 
-`pack:local` first builds the library (`dist/`) and then runs `npm pack`.
-The result is a file similar to:
+The build intentionally runs Vite before declaration generation so Vite cannot erase the generated `.d.ts` files:
 
 ```text
-company-ui-0.1.0.tgz
+vite build -> tsc declarations
 ```
 
-Install that archive in another application:
-
-```bash
-npm install /absolute/path/to/company-ui-0.1.0.tgz
-```
-
-Or copy the archive into the application repository and install it relatively:
-
-```bash
-npm install ./vendor/company-ui-0.1.0.tgz
-```
-
-Use components from the package root:
-
-```tsx
-import {
-  Button,
-  DataTable,
-  defineDataTable,
-} from "@company/ui";
-
-import "@company/ui/styles.css";
-```
-
-The CSS import is required once in the consuming application. It contains the UI tokens, global box-sizing rule and component styles generated by the library build.
-
-### Package contents
-
-Only the published library artifacts and documentation are included in the `.tgz`:
+Expected output includes:
 
 ```text
-dist/
-README.md
-DEVELOPMENT.md
-package.json
+dist/index.js
+dist/index.d.ts
+dist/styles.css
 ```
-
-The demo application (`App.tsx`, `main.tsx`, `public/`, etc.) is not included in the npm package.
-
-### Public entry point
-
-The public package API is defined in:
-
-```text
-src/index.ts
-```
-
-When a new public UI component is added, export it from its local `index.ts` and then export that directory from `src/index.ts`.
-
-Do not import internal DataTable files from consumer applications. Public DataTable exports are defined by `src/components/data-table/index.ts` and re-exported from the package root.

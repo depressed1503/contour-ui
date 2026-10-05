@@ -1,419 +1,330 @@
-# DataTable maintainer guide
+# Contour UI maintainer guide
 
-This document is for developers changing the DataTable itself rather than only consuming it.
+This document is for developers extending the UI library itself.
 
 ## Architecture
 
 The intended dependency direction is:
 
 ```text
-Application definition
-        ↓
-DataTable orchestration
-        ↓
-TanStack Table / TanStack Form logic
-        ↓
+Application
+   ↓
+definitions / datasource adapters
+   ↓
+DataTable / DataForm
+   ↓
+TanStack Table / TanStack Form
+   ↓
 Contour UI primitives
-        ↓
+   ↓
 Base UI / native HTML
 ```
 
-The UI Kit owns visual language. The DataTable owns reusable table/editor behavior. Application code owns business rules and backend-specific actions.
+Application-specific Axios configuration stays in the application. Contour UI receives a ready client through `createCrudApi({ axios })`.
 
-Avoid pushing DataTable state or business rules into low-level UI primitives.
+Do not import an application's `axiosConfig.ts`, environment variables, cookies, authentication logic, or business APIs from the library.
 
-## File map
+## Shared CRUD datasource
 
-### Public entry points
+`src/lib/crud.ts`
 
-`src/components/data-table/index.ts`
+Defines the transport-neutral mutation/detail contract shared by DataTable and DataForm:
 
-Public exports. If a consumer should not depend on a symbol, do not export it here.
+```text
+getOne
+create
+update
+delete
+```
 
-`src/components/data-table/defineDataTable.ts`
+`src/components/data-table/DataTable.types.ts` extends that contract with `getList`.
 
-Identity helper that preserves inference for a definition.
+`src/components/data-table/createCrudApi.ts` is the DRF/Axios adapter. It serializes DataTable query state and delegates HTTP behavior to the Axios instance supplied by the host application.
+
+Because the Axios type is structural, Contour UI does not need an Axios runtime dependency.
+
+## DataForm file map
+
+`src/components/data-form/DataForm.types.ts`
+
+Public DataForm contract: modes, values, field definitions, conditions, layout, validation, parse/serialize hooks and render contexts.
+
+`src/components/data-form/defineDataForm.ts`
+
+Identity helper for inference and public definition authoring.
+
+`src/components/data-form/DataForm.tsx`
+
+Form orchestration. Owns detail loading, TanStack Form lifecycle, submit state, server errors, create/update calls, view mode and layout composition.
+
+`src/components/data-form/DataFormField.tsx`
+
+Maps generic field definitions to Contour UI primitives.
+
+`src/components/data-form/DataForm.utils.ts`
+
+Pure form logic: snake_case mapping, initial values, payload creation, conditions, validation and DRF/Axios server-error normalization.
+
+`src/components/data-form/DataForm.module.css`
+
+Generated-form layout and status styles.
+
+`src/components/data-form/index.ts`
+
+Public DataForm exports.
+
+## DataTable file map
 
 `src/components/data-table/DataTable.types.ts`
 
-Public contracts and shared internal types: datasource, columns, filters, bulk actions, editor fields, row actions and component props.
-
-### Data access
-
-`src/components/data-table/createCrudApi.ts`
-
-DRF-oriented datasource adapter. Owns list query serialization and standard CRUD HTTP calls. It must not know about React UI.
+Public table contracts. Editor field types are aliases to the shared DataForm field model.
 
 `src/components/data-table/useDataTable.ts`
 
-Main list-state orchestration: data loading, URL state, filtering debounce, selection, refresh and column preferences. It maps frontend sort/filter ids to backend field names before calling the datasource.
-
-### List/table rendering
+List loading, URL state, filter debounce, selection, refresh and column preferences.
 
 `src/components/data-table/DataTable.tsx`
 
-High-level composition. Connects toolbar, table engine, pagination, bulk action modal and CRUD dialogs.
+High-level composition of toolbar, engine, pagination, bulk actions and CRUD dialogs.
 
 `src/components/data-table/DataTableEngine.tsx`
 
-TanStack Table integration and table markup. It renders headers, sorting, filter row, data rows, selection and the row-actions cell.
-
-`src/components/data-table/DataTable.features.ts`
-
-TanStack Table feature configuration. Treat changes here carefully because the project uses TanStack Table v9 APIs.
+TanStack Table integration and table rendering.
 
 `src/components/data-table/DataTableFilterControl.tsx`
 
-Filter control rendering and include/exclude behavior.
-
-`src/components/data-table/DataTablePagination.tsx`
-
-Pagination presentation.
-
-`src/components/data-table/DataTableStatus.tsx`
-
-List loading/error state.
-
-### Display preferences and URL state
+Filter controls and include/exclude behavior.
 
 `src/components/data-table/DataTableUrlState.ts`
 
-Reads/writes page, page size, sorting and filters from the browser URL.
+URL serialization for pagination, sorting and filters.
 
 `src/components/data-table/DataTableColumnPreferences.ts`
 
-Persistent display preferences stored in localStorage.
-
-`src/components/data-table/DataTableColumnsMenu.tsx`
-
-Columns visibility UI.
-
-### Bulk actions
+LocalStorage column preferences.
 
 `src/components/data-table/DataTableActionsMenu.tsx`
 
-Always-visible Actions menu.
+Always-visible bulk Actions menu.
 
 `src/components/data-table/DataTableBulkActionDialog.tsx`
 
-Chooses Selected vs All matching filters and renders optional action-specific fields.
-
-### CRUD editor
+Selected IDs vs all filtered records and optional action-specific fields.
 
 `src/components/data-table/DataTableEditorDialog.tsx`
 
-Loads detail data for Edit, creates the TanStack Form instance, submits POST/PATCH, renders generated fields and handles mutation-level errors.
+Generated DataTable Create/Edit dialog. It uses the shared DataForm field definitions and shared field renderer.
 
 `src/components/data-table/DataTableEditorField.tsx`
 
-Maps editor field definitions to Contour UI controls.
+Compatibility wrapper around the shared `DataFormField` renderer. It keeps support for the old `editor.renderField` extension point.
 
 `src/components/data-table/DataTableEditor.utils.ts`
 
-Pure editor helpers: snake_case mapping, initial values, payload generation and validation.
+Compatibility wrappers around shared DataForm utility functions.
 
 `src/components/data-table/DataTableDeleteDialog.tsx`
 
-Generated Yes/No delete confirmation and datasource DELETE call.
+Generated delete confirmation.
 
 `src/components/data-table/DataTableRowActions.tsx`
 
-Generated Edit/Delete menu items plus application-defined custom row actions.
+Generated Edit/Delete actions plus custom row actions.
 
-### Shared styles
+## Adding a new form/editor field type
 
-`src/components/data-table/DataTable.module.css`
+Field types are now shared between standalone DataForm and DataTable editors. Do not implement the same type separately in the table.
 
-All DataTable-specific styles. Visual primitives should stay in their own UI component folders rather than being reimplemented here.
+Example: add `color`.
 
-## Data flow
+### 1. Extend the public field union
 
-### List query
+Edit `src/components/data-form/DataForm.types.ts`.
 
-```text
-URL/local state
-  ↓
-useDataTable
-  ↓
-frontend ids
-  ↓
-field mapping
-  ↓
-DataTableQuery with backend ids
-  ↓
-datasource.getList()
-```
-
-Do not store backend field names in the browser URL. URLs should remain coupled to the frontend definition, not to the transport layer.
-
-### Edit flow
-
-```text
-row action Edit
-  ↓
-getRowId(row)
-  ↓
-datasource.getOne(id)
-  ↓
-backend detail object
-  ↓
-createEditorValues()
-  ↓
-TanStack Form
-  ↓
-createEditorPayload()
-  ↓
-datasource.update(id, payload)
-  ↓
-refresh list
-```
-
-### Create flow
-
-```text
-Create button
-  ↓
-field defaults
-  ↓
-TanStack Form
-  ↓
-createEditorPayload()
-  ↓
-datasource.create(payload)
-  ↓
-refresh current page
-```
-
-## Adding a new editor field type
-
-Example: adding `color`.
-
-### 1. Extend the type union
-
-In `DataTable.types.ts`, add the new discriminator to `DataTableEditorFieldBase["type"]` and add a dedicated interface:
+Add the discriminator to `DataFormFieldBase["type"]` and define a dedicated interface:
 
 ```ts
-export interface DataTableEditorColorField extends DataTableEditorFieldBase {
+export interface DataFormColorField extends DataFormFieldBase {
   type: "color";
 }
 ```
 
-Add it to `DataTableEditorFieldDefinition` and export it from `index.ts` if consumers need to name the type.
+Add it to `DataFormFieldDefinition` and export it from `src/components/data-form/index.ts`.
 
-### 2. Define the default value and detail normalization
+If consumers need the legacy DataTable-specific type name, add an alias in `DataTable.types.ts` and export that alias from `data-table/index.ts`.
 
-Update `DataTableEditor.utils.ts`:
+### 2. Define normalization/default behavior
 
-- `getEditorDefaultValue()` if the type needs a non-empty default shape;
-- `normalizeEditorValue()` if backend data needs conversion;
-- `validateEditorField()` if it has built-in rules.
+Edit `src/components/data-form/DataForm.utils.ts` only if the new type needs special handling.
 
-Keep these functions transport-agnostic. They should not import React.
-
-### 3. Render the control
-
-Add a case to `renderDefaultControl()` in `DataTableEditorField.tsx`:
-
-```tsx
-case "color":
-  return (
-    <ColorInput
-      value={String(value ?? "")}
-      onChange={onChange}
-    />
-  );
-```
-
-If the control is generally reusable outside DataTable, build it first in `src/components/ui/` and use that primitive here.
-
-Do not add application-specific controls directly to the DataTable core. Use `editor.renderField` for one-off business controls.
-
-### 4. Document it
-
-Add the new type to the editor field section in `README.md`, including one consumer example.
-
-### 5. Exercise create and edit
-
-Test both directions:
+Typical touch points:
 
 ```text
-backend detail -> form value
-form value -> backend payload
+getDataFormDefaultValue
+normalizeDataFormValue
+validateDataFormField
 ```
 
-A field type is incomplete if only Create or only Edit works.
+Do not put React code in this file.
+
+### 3. Render the field
+
+Edit `src/components/data-form/DataFormField.tsx` and add a `case` to `renderDefaultControl()`.
+
+If the control is useful outside generated forms, first build a reusable primitive under:
+
+```text
+src/components/ui/<component>/
+```
+
+Then use that primitive in DataForm.
+
+### 4. Verify all three modes
+
+Test:
+
+```text
+create: form -> payload
+edit: detail -> form -> payload
+view: detail -> disabled/read-only presentation
+```
+
+Also verify conditional `hidden` / `disabled` behavior if relevant.
+
+### 5. Add a playground example
+
+Update `src/App.tsx` so the new type is easy to manually inspect.
+
+### 6. Update README
+
+Document the public field API and at least one consumer example.
 
 ## Adding a new filter type
 
-The main touch points are:
+Main touch points:
 
-1. `DataTable.types.ts` — add the filter discriminator and config type.
-2. `DataTableFilterControl.tsx` — render the control and normalize its value.
-3. `DataTableUrlState.ts` — parse and serialize the value.
-4. `createCrudApi.ts` — only if its transport representation differs from existing scalar/array/range serialization.
-5. `README.md` — document the public API.
+1. `DataTable.types.ts` — discriminator/config type.
+2. `DataTableFilterControl.tsx` — control rendering.
+3. `DataTableUrlState.ts` — URL parse/serialize.
+4. `createCrudApi.ts` — only if backend serialization differs from scalar/array/range behavior.
+5. `README.md` — public documentation.
 
-Remember that filter state uses frontend column ids until `useDataTable` maps it for the datasource.
+Filter state uses frontend column ids until `useDataTable` maps them to backend field names.
 
-## Adding a new datasource capability
+## Field mapping
 
-Keep datasource capabilities in `DataTableDataSource` and implement DRF behavior in `createCrudApi`.
-
-Do not call `fetch` directly from `DataTable.tsx` or editor components. Components should depend on datasource methods, so another application can supply a non-DRF datasource.
-
-## Changing editor payload mapping
-
-Mapping is centralized in `DataTableEditor.utils.ts`.
-
-Default rule:
+Shared form default:
 
 ```text
-frontend editor key -> snake_case backend field
+frontend key -> snake_case backend key
 ```
 
-Explicit `field` wins over automatic conversion.
-
-Example:
+Examples:
 
 ```text
-company -> company_id
+backgroundColor -> background_color
+lastSeenAt      -> last_seen_at
 ```
 
-Do not spread field-name conversion across input components or dialogs.
-
-## Validation rules
-
-TanStack Form owns field/form lifecycle. Our editor definition owns validation policy.
-
-Built-in validation belongs in `validateEditorField()` when it is generic across applications. Business-specific validation belongs in a field's `validate` callback.
-
-Do not add domain-specific rules such as “status cannot become archived when invoices exist” to the DataTable package.
-
-## Custom controls and escape hatches
-
-Prefer this order:
-
-1. built-in generated field;
-2. `editor.renderField` for one field;
-3. `editor.renderAfter` for a preview or extra block;
-4. application-owned custom workflow if the whole interaction is domain-specific.
-
-Avoid growing the editor config with many one-off props just to avoid writing a small custom renderer.
-
-## Row actions
-
-Generated Edit/Delete actions come from `editor.edit` and `editor.delete`.
-
-Application-specific actions belong in `definition.rowActions`.
-
-If a custom action needs a large workflow or modal, keep that state in an application component rather than teaching the generic row-action menu every business case.
-
-## Bulk action invariants
-
-Bulk scope is chosen only after selecting an action.
-
-The action target is always one of:
+Explicit `field` always wins:
 
 ```ts
-{ ids: string[] }
+company: {
+  field: "company_id",
+  ...
+}
 ```
 
-or:
+Keep mapping centralized in `DataForm.utils.ts`.
+
+## Conditional fields
+
+Conditions receive:
 
 ```ts
-{ filters: DataTableFilter[] }
+{
+  mode,
+  values,
+}
 ```
 
-Do not reintroduce a persistent “all matching selected” table state. The table selection model should remain a simple set of explicit row ids.
+They must remain synchronous and side-effect free.
 
-## UI Kit boundary
+Do not perform HTTP requests inside `hidden` or `disabled` callbacks.
 
-Use existing Contour UI components from `src/components/ui/` for buttons, fields, dialogs, menus, selects and similar presentation.
+## Parse / serialize
 
-Create a new primitive when:
+`parse` runs while backend detail data becomes form values.
 
-- it is reusable outside DataTable;
-- it describes visual/interaction language rather than table business logic.
+`serialize` runs while form values become a mutation payload.
 
-Keep it inside `data-table/` when:
+Use these for representation conversion, not for network calls or unrelated business side effects.
 
-- it only makes sense as DataTable orchestration;
-- it depends on DataTable definitions, queries or datasource contracts.
+## Server errors
 
-## TanStack boundaries
+Server-error parsing is centralized in `parseDataFormServerErrors()`.
 
-TanStack Table owns table mechanics. TanStack Form owns form state/validation mechanics. Neither should become part of the application-facing API unless necessary.
-
-This project currently uses TanStack Table v9, so do not copy v8-only examples such as `useReactTable()` or `getCoreRowModel()` without checking the installed API.
-
-## Public API discipline
-
-Before exporting a new symbol from `index.ts`, ask whether an application consumer actually needs it.
-
-Internal components should stay internal so their props can change without migrating every CRUD page.
-
-The primary stable surface should remain:
-
-```tsx
-<DataTable definition={definition} />
-```
-
-plus definition/data-source helper types.
-
-## Checklist before merging DataTable changes
-
-- run `npm install` after dependency changes;
-- run `npm run build`;
-- run `npm run lint`;
-- test list loading, retry and abort behavior;
-- test sorting and every changed filter in the URL;
-- test column visibility persistence;
-- test explicit selection across pages;
-- test bulk actions for both Selected and All matching;
-- test Create, Edit detail loading, PATCH and Delete;
-- test custom validation;
-- test `field` mapping in both detail and mutation payload directions;
-- update `README.md` and this file when the extension model changes.
-
-## Building and packing the UI library
-
-The repository is both a local demo project and an npm library source. The npm package entry point is `src/index.ts`.
-
-Library build pipeline:
+It understands:
 
 ```text
-src/index.ts
-    ↓
-tsc -p tsconfig.lib.json
-    ↓
-dist/*.d.ts
-
-src/index.ts
-    ↓
-Vite library mode
-    ↓
-dist/index.js + dist/styles.css
-    ↓
-npm pack
-    ↓
-company-ui-<version>.tgz
+Axios error.response.data
+field: [messages]
+non_field_errors
+detail
 ```
 
-Relevant files:
+When introducing another backend error convention, extend this parser rather than adding special cases to field controls.
 
-- `src/index.ts` — public root API of `@company/ui`.
-- `vite.config.ts` — Vite library-mode bundle configuration.
-- `tsconfig.lib.json` — declaration-only TypeScript build for package consumers.
-- `package.json` — npm exports, peer dependencies, packaged files and `pack:local` script.
-- `src/components/data-table/index.ts` — public API boundary of DataTable.
-- `src/components/ui/*/index.ts` — public API boundary of each UI primitive.
+## createCrudApi and Axios
 
-To create the package:
+The application should do this:
 
-```bash
-npm run pack:local
+```ts
+const api = createCrudApi({
+  axios: Axios,
+  endpoints: {...},
+});
 ```
 
-Before adding a new public component, make sure its component props/types are exported from the component directory `index.ts`, then re-export the directory from `src/index.ts`.
+Do not add a global Axios singleton or application Provider inside Contour UI just to hide this dependency. One datasource object can already be shared by both DataTable and DataForm, so Axios injection happens once at API construction time.
 
-React and ReactDOM are peer dependencies so a consuming application uses its own React runtime. Base UI, TanStack Form, TanStack Table and Lucide are regular dependencies and are installed with the package. They are externalized from the generated JavaScript bundle to avoid embedding duplicate copies in `dist/index.js`.
+## Package build
+
+`vite.config.ts` builds the library bundle and extracts CSS.
+
+`tsconfig.lib.json` emits declaration files.
+
+The order in `package.json` matters:
+
+```text
+vite build
+then
+tsc declaration build
+```
+
+Vite clears `dist`, so running TypeScript declarations first would delete `dist/index.d.ts`.
+
+`src/index.ts` is the root public entry point. Add new public packages there.
+
+The consumer imports styles once:
+
+```ts
+import "@company/ui/styles.css";
+```
+
+## Public API rule
+
+Prefer a small root API:
+
+```ts
+import {
+  Button,
+  DataForm,
+  DataTable,
+  createCrudApi,
+  defineDataForm,
+  defineDataTable,
+} from "@company/ui";
+```
+
+Internal orchestration components should not be exported unless an application has a real supported use case for them.

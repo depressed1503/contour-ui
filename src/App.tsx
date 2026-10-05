@@ -25,6 +25,12 @@ import {
   type DataTableRangeValue,
 } from "./components/data-table";
 
+import {
+  DataForm,
+  defineDataForm,
+  type DataFormMode,
+} from "./components/data-form";
+
 import "./App.css";
 import "./styles/tokens.css";
 import "./styles/globals.css";
@@ -377,24 +383,25 @@ const assetDataSource: DataTableDataSource<Asset> = {
   async create(payload, signal) {
     await delay(320, signal);
 
-    const company = getCompany(Number(payload.company_id));
+    const data = crudPayloadToRecord(payload);
+    const company = getCompany(Number(data.company_id));
     const now = new Date().toISOString().slice(0, 16);
     const today = now.slice(0, 10);
     const id = Math.max(0, ...assets.map((asset) => asset.id)) + 1;
 
     const asset: Asset = {
       id,
-      name: String(payload.name ?? ""),
-      description: String(payload.description ?? ""),
+      name: String(data.name ?? ""),
+      description: String(data.description ?? ""),
       company,
-      status: toAssetStatus(payload.status),
-      assetsCount: Number(payload.assets_count ?? 0),
-      priority: Number(payload.priority ?? 1),
-      featured: payload.featured === true,
-      channels: toStringArray(payload.channels),
-      updatedAt: String(payload.updated_at ?? today),
-      createdAt: String(payload.created_at ?? today),
-      lastSeenAt: String(payload.last_seen_at ?? now),
+      status: toAssetStatus(data.status),
+      assetsCount: Number(data.assets_count ?? 0),
+      priority: Number(data.priority ?? 1),
+      featured: data.featured === true,
+      channels: toStringArray(data.channels),
+      updatedAt: String(data.updated_at ?? today),
+      createdAt: String(data.created_at ?? today),
+      lastSeenAt: String(data.last_seen_at ?? now),
     };
 
     assets.unshift(asset);
@@ -404,23 +411,24 @@ const assetDataSource: DataTableDataSource<Asset> = {
   async update(id, payload, signal) {
     await delay(320, signal);
 
+    const data = crudPayloadToRecord(payload);
     const asset = assets.find((item) => String(item.id) === id);
 
     if (!asset) {
       throw new Error("Asset not found");
     }
 
-    asset.name = String(payload.name ?? asset.name);
-    asset.description = String(payload.description ?? asset.description ?? "");
-    asset.company = getCompany(Number(payload.company_id ?? asset.company.id));
-    asset.status = toAssetStatus(payload.status ?? asset.status);
-    asset.assetsCount = Number(payload.assets_count ?? asset.assetsCount);
-    asset.priority = Number(payload.priority ?? asset.priority);
-    asset.featured = payload.featured === true;
-    asset.channels = toStringArray(payload.channels ?? asset.channels ?? []);
-    asset.updatedAt = String(payload.updated_at ?? asset.updatedAt);
-    asset.createdAt = String(payload.created_at ?? asset.createdAt);
-    asset.lastSeenAt = String(payload.last_seen_at ?? asset.lastSeenAt);
+    asset.name = String(data.name ?? asset.name);
+    asset.description = String(data.description ?? asset.description ?? "");
+    asset.company = getCompany(Number(data.company_id ?? asset.company.id));
+    asset.status = toAssetStatus(data.status ?? asset.status);
+    asset.assetsCount = Number(data.assets_count ?? asset.assetsCount);
+    asset.priority = Number(data.priority ?? asset.priority);
+    asset.featured = data.featured === true;
+    asset.channels = toStringArray(data.channels ?? asset.channels ?? []);
+    asset.updatedAt = String(data.updated_at ?? asset.updatedAt);
+    asset.createdAt = String(data.created_at ?? asset.createdAt);
+    asset.lastSeenAt = String(data.last_seen_at ?? asset.lastSeenAt);
 
     return asset;
   },
@@ -722,6 +730,109 @@ const assetTable = defineDataTable<Asset>({
   },
 });
 
+const assetForm = defineDataForm<Asset>({
+  id: "asset-form",
+  datasource: assetDataSource,
+  layout: { columns: 2 },
+  fields: {
+    name: {
+      type: "text",
+      label: "Name",
+      required: true,
+      minLength: 2,
+      maxLength: 80,
+      placeholder: "Analytics",
+      span: 2,
+    },
+    company: {
+      type: "select",
+      label: "Company",
+      field: "company_id",
+      required: true,
+      options: companyItems,
+    },
+    status: {
+      type: "select",
+      label: "Status",
+      required: true,
+      defaultValue: "active",
+      options: statusItems,
+    },
+    description: {
+      type: "textarea",
+      label: "Description",
+      maxLength: 500,
+      rows: 5,
+      span: 2,
+      hidden: ({ values }) => values.featured !== true,
+      description: "Visible when Featured is enabled.",
+    },
+    featured: {
+      type: "checkbox",
+      label: "Featured",
+      description: "Enable to reveal the description field.",
+    },
+    channels: {
+      type: "multiselect",
+      label: "Channels",
+      options: channelItems,
+      defaultValue: [],
+      disabled: ({ values }) => values.status === "archived",
+      description: "Disabled for archived assets.",
+    },
+    assetsCount: {
+      type: "number",
+      label: "Assets",
+      field: "assets_count",
+      min: 0,
+      defaultValue: 0,
+    },
+    priority: {
+      type: "number",
+      label: "Priority",
+      required: true,
+      min: 1,
+      max: 5,
+      defaultValue: 3,
+      validate: (value) =>
+        typeof value === "number" && Number.isInteger(value)
+          ? undefined
+          : "Priority must be a whole number.",
+      render: ({ value, disabled, setValue }) => (
+        <div className="rangeField">
+          <Input
+            type="range"
+            min={1}
+            max={5}
+            step={1}
+            value={typeof value === "number" ? value : 3}
+            disabled={disabled}
+            onChange={(event) => setValue(Number(event.target.value))}
+          />
+          <Badge>{String(value ?? 3)}</Badge>
+        </div>
+      ),
+    },
+    updatedAt: {
+      type: "date",
+      label: "Updated",
+      field: "updated_at",
+      required: true,
+    },
+    lastSeenAt: {
+      type: "datetime",
+      label: "Last seen",
+      field: "last_seen_at",
+      hidden: ({ values }) => values.status === "archived",
+    },
+  },
+  renderAfter: ({ mode, values }) => (
+    <div className="formPreview">
+      Mode: {mode}. Backend payload uses snake_case by default. Current name: {String(values.name ?? "—")}
+    </div>
+  ),
+});
+
 export default function App() {
   const [value, setValue] = useState("");
 
@@ -734,6 +845,7 @@ export default function App() {
   const [enabled, setEnabled] = useState(false);
 
   const [companyId, setCompanyId] = useState<number | null>(42);
+  const [formMode, setFormMode] = useState<DataFormMode>("create");
 
   return (
     <main className="demo">
@@ -1060,6 +1172,51 @@ export default function App() {
       </section>
 
       <section className="block">
+        <h2>DataForm</h2>
+
+        <div className="row">
+          <Button
+            variant={formMode === "create" ? "primary" : "secondary"}
+            onClick={() => setFormMode("create")}
+          >
+            Create
+          </Button>
+          <Button
+            variant={formMode === "edit" ? "primary" : "secondary"}
+            onClick={() => setFormMode("edit")}
+          >
+            Edit #1
+          </Button>
+          <Button
+            variant={formMode === "view" ? "primary" : "secondary"}
+            onClick={() => setFormMode("view")}
+          >
+            View #1
+          </Button>
+        </div>
+
+        <div className="formCard">
+          <DataForm
+            definition={assetForm}
+            mode={formMode}
+            id={formMode === "create" ? undefined : 1}
+            initialValues={
+              formMode === "create"
+                ? {
+                    company: 42,
+                    status: "active",
+                    updatedAt: "2026-09-30",
+                  }
+                : undefined
+            }
+            onSuccess={({ mode, item }) => {
+              console.log("DataForm success", mode, item);
+            }}
+          />
+        </div>
+      </section>
+
+      <section className="block">
         <h2>DataTable</h2>
 
         <DataTable definition={assetTable} />
@@ -1319,6 +1476,16 @@ function toStringArray(value: unknown): string[] {
   }
 
   return value.filter((item): item is string => typeof item === "string");
+}
+
+function crudPayloadToRecord(
+  payload: Record<string, unknown> | FormData,
+): Record<string, unknown> {
+  if (!(payload instanceof FormData)) {
+    return payload;
+  }
+
+  return Object.fromEntries(payload.entries());
 }
 
 function delay(milliseconds: number, signal: AbortSignal): Promise<void> {

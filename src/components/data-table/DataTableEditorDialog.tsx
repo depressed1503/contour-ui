@@ -5,6 +5,7 @@ import type { RowData } from "@tanstack/react-table";
 
 import { Button } from "../ui/button";
 import { Dialog } from "../ui/dialog";
+import { resolveDataFormCondition } from "../data-form/DataForm.utils";
 
 import { DataTableEditorField } from "./DataTableEditorField";
 import {
@@ -237,48 +238,65 @@ function DataTableEditorForm<TData extends RowData>({
         void form.handleSubmit();
       }}
     >
-      <div className={styles.editorFields}>
-        {visibleFields.map(([name, fieldDefinition]) => (
-          <form.Field
-            key={name}
-            name={name}
-            validators={{
-              onBlur: ({ value }: { value: unknown }) =>
-                validateEditorField(
-                  fieldDefinition,
-                  value as DataTableEditorValue,
+      <form.Subscribe
+        selector={(state: { values: DataTableEditorValues }) => state.values}
+      >
+        {(values: DataTableEditorValues) => (
+          <div className={styles.editorFields}>
+            {visibleFields.map(([name, fieldDefinition]) => {
+              if (
+                resolveDataFormCondition(fieldDefinition.hidden, {
                   mode,
-                  form.state.values as DataTableEditorValues,
-                ),
-              onSubmit: ({ value }: { value: unknown }) =>
-                validateEditorField(
-                  fieldDefinition,
-                  value as DataTableEditorValue,
-                  mode,
-                  form.state.values as DataTableEditorValues,
-                ),
-            }}
-          >
-            {(field: EditorFieldApi) => {
-              const error = getFieldError(field.state.meta.errors);
+                  values,
+                })
+              ) {
+                return null;
+              }
 
               return (
-                <DataTableEditorField
+                <form.Field
+                  key={name}
                   name={name}
-                  definition={fieldDefinition}
-                  mode={mode}
-                  value={field.state.value as DataTableEditorValue}
-                  values={form.state.values as DataTableEditorValues}
-                  error={error}
-                  onBlur={field.handleBlur}
-                  onChange={(nextValue) => field.handleChange(nextValue)}
-                  renderCustom={editor.renderField?.[name]}
-                />
+                  validators={{
+                    onBlur: ({ value }: { value: unknown }) =>
+                      validateEditorField(
+                        fieldDefinition,
+                        value as DataTableEditorValue,
+                        mode,
+                        form.state.values as DataTableEditorValues,
+                      ),
+                    onSubmit: ({ value }: { value: unknown }) =>
+                      validateEditorField(
+                        fieldDefinition,
+                        value as DataTableEditorValue,
+                        mode,
+                        form.state.values as DataTableEditorValues,
+                      ),
+                  }}
+                >
+                  {(field: EditorFieldApi) => {
+                    const error = getFieldError(field.state.meta.errors);
+
+                    return (
+                      <DataTableEditorField
+                        name={name}
+                        definition={fieldDefinition}
+                        mode={mode}
+                        value={field.state.value as DataTableEditorValue}
+                        values={values}
+                        error={error}
+                        onBlur={field.handleBlur}
+                        onChange={(nextValue) => field.handleChange(nextValue)}
+                        renderCustom={editor.renderField?.[name]}
+                      />
+                    );
+                  }}
+                </form.Field>
               );
-            }}
-          </form.Field>
-        ))}
-      </div>
+            })}
+          </div>
+        )}
+      </form.Subscribe>
 
       {editor.renderAfter ? (
         <form.Subscribe

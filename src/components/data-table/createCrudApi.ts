@@ -6,45 +6,69 @@ import type {
   DataTableRangeValue,
 } from "./DataTable.types";
 
-export interface CrudApiOptions {
-  endpoint: string;
-  fetcher?: typeof fetch;
-  headers?: HeadersInit;
+export type CrudId = string | number;
+
+/**
+ * Structural subset of an Axios instance used by createCrudApi.
+ * A normal `axios.create(...)` instance is compatible with this interface,
+ * while @company/ui does not need to depend on axios at runtime.
+ */
+export interface CrudAxiosLike {
+  get: (...args: any[]) => Promise<{ data: unknown }>;
+  post: (...args: any[]) => Promise<{ data: unknown }>;
+  patch: (...args: any[]) => Promise<{ data: unknown }>;
+  delete: (...args: any[]) => Promise<unknown>;
 }
 
-interface DrfListResponse<TData> {
+export type CrudAxiosConfig = Record<string, any>;
+
+export interface CrudEndpoints {
+  list: string;
+  detail: (id: CrudId) => string;
+  create?: string;
+  update?: (id: CrudId) => string;
+  delete?: (id: CrudId) => string;
+}
+
+export interface CreateCrudApiOptions {
+  /** Axios instance created by the host application. */
+  axios: CrudAxiosLike;
+  endpoints: CrudEndpoints;
+  /** Extra Axios config merged into every request. */
+  axiosConfig?: CrudAxiosConfig;
+}
+
+interface DrfPaginatedResponse<TItem> {
   count: number;
   next: string | null;
   previous: string | null;
-  results: TData[];
+  results: TItem[];
 }
 
-export class DataTableRequestError extends Error {
-  readonly status: number;
-  readonly body: unknown;
+export function createCrudApi<
+  TItem extends DataTableDetail,
+  TDetail extends DataTableDetail = TItem,
+>({
+  axios,
+  endpoints,
+  axiosConfig,
+}: CreateCrudApiOptions): DataTableDataSource<TItem, TDetail> {
+  const listUrl = endpoints.list;
 
-  constructor(message: string, status: number, body: unknown) {
-    super(message);
-    this.name = "DataTableRequestError";
-    this.status = status;
-    this.body = body;
-  }
-}
+  const getDetailUrl = (id: CrudId): string => endpoints.detail(id);
+  const getUpdateUrl = (id: CrudId): string =>
+    endpoints.update ? endpoints.update(id) : getDetailUrl(id);
+  const getDeleteUrl = (id: CrudId): string =>
+    endpoints.delete ? endpoints.delete(id) : getDetailUrl(id);
 
-export function createCrudApi<TData>({
-  endpoint,
-  fetcher = fetch,
-  headers,
-}: CrudApiOptions): DataTableDataSource<TData> {
   return {
     async getList(query, signal) {
-      const response = await fetcher(createListUrl(endpoint, query), {
-        method: "GET",
+      const response = await axios.get(listUrl, {
+        ...axiosConfig,
+        params: dataTableQueryToUrlParams(query),
         signal,
-        headers: createHeaders(headers),
       });
-
-      const data = await readJsonResponse<DrfListResponse<TData>>(response);
+      const data = response.data as DrfPaginatedResponse<TItem>;
 
       return {
         items: data.results,
@@ -53,159 +77,85 @@ export function createCrudApi<TData>({
     },
 
     async getOne(id, signal) {
-      const response = await fetcher(createDetailUrl(endpoint, id), {
-        method: "GET",
+      const response = await axios.get(getDetailUrl(id), {
+        ...axiosConfig,
         signal,
-        headers: createHeaders(headers),
       });
 
-      return readJsonResponse<DataTableDetail>(response);
+      return response.data as TDetail;
     },
 
-    async create(payload, signal) {
-      const response = await fetcher(normalizeCollectionEndpoint(endpoint), {
-        method: "POST",
-        signal,
-        headers: createHeaders(headers, true),
-        body: JSON.stringify(payload),
-      });
+    async create(data, signal) {
+      const response = await axios.post(
+        endpoints.create ?? listUrl,
+        data,
+        createMutationConfig(axiosConfig, signal, data),
+      );
 
-      return readJsonResponse<TData>(response);
+      return response.data as TItem;
     },
 
-    async update(id, payload, signal) {
-      const response = await fetcher(createDetailUrl(endpoint, id), {
-        method: "PATCH",
-        signal,
-        headers: createHeaders(headers, true),
-        body: JSON.stringify(payload),
-      });
+    async update(id, data, signal) {
+      const response = await axios.patch(
+        getUpdateUrl(id),
+        data,
+        createMutationConfig(axiosConfig, signal, data),
+      );
 
-      return readJsonResponse<TData>(response);
+      return response.data as TItem;
     },
 
     async delete(id, signal) {
-      const response = await fetcher(createDetailUrl(endpoint, id), {
-        method: "DELETE",
+      await axios.delete(getDeleteUrl(id), {
+        ...axiosConfig,
         signal,
-        headers: createHeaders(headers),
       });
-
-      if (!response.ok) {
-        throw await createRequestError(response);
-      }
     },
   };
 }
 
-function createHeaders(
-  headers: HeadersInit | undefined,
-  json = false,
-): Headers {
-  const result = new Headers(headers);
-
-  if (!result.has("Accept")) {
-    result.set("Accept", "application/json");
+function createMutationConfig(
+  config: CrudAxiosConfig | undefined,
+  signal: AbortSignal,
+  data: unknown,
+): CrudAxiosConfig {
+  if (!(data instanceof FormData)) {
+    return {
+      ...config,
+      signal,
+    };
   }
 
-  if (json && !result.has("Content-Type")) {
-    result.set("Content-Type", "application/json");
-  }
-
-  return result;
+  return {
+    ...config,
+    signal,
+    headers: {
+      ...(config?.headers ?? {}),
+      "Content-Type": undefined,
+    },
+  };
 }
 
-async function readJsonResponse<TData>(response: Response): Promise<TData> {
-  if (!response.ok) {
-    throw await createRequestError(response);
-  }
-
-  if (response.status === 204) {
-    return undefined as TData;
-  }
-
-  return (await response.json()) as TData;
-}
-
-async function createRequestError(response: Response): Promise<DataTableRequestError> {
-  const body = await readResponseBody(response);
-  const message = getErrorMessage(body, response.status);
-
-  return new DataTableRequestError(message, response.status, body);
-}
-
-async function readResponseBody(response: Response): Promise<unknown> {
-  const contentType = response.headers.get("content-type") ?? "";
-
-  try {
-    if (contentType.includes("application/json")) {
-      return await response.json();
-    }
-
-    const text = await response.text();
-    return text || null;
-  } catch {
-    return null;
-  }
-}
-
-function getErrorMessage(body: unknown, status: number): string {
-  if (
-    body &&
-    typeof body === "object" &&
-    "detail" in body &&
-    typeof body.detail === "string"
-  ) {
-    return body.detail;
-  }
-
-  if (typeof body === "string" && body.trim()) {
-    return body;
-  }
-
-  return `Request failed with status ${status}`;
-}
-
-function createDetailUrl(endpoint: string, id: string): string {
-  const collection = normalizeCollectionEndpoint(endpoint);
-  return `${collection}${encodeURIComponent(id)}/`;
-}
-
-function normalizeCollectionEndpoint(endpoint: string): string {
-  return endpoint.endsWith("/") ? endpoint : `${endpoint}/`;
-}
-
-function createListUrl(endpoint: string, query: DataTableQuery): string {
+function dataTableQueryToUrlParams(query: DataTableQuery): URLSearchParams {
   const params = new URLSearchParams();
-
   params.set("page", String(query.page));
   params.set("page_size", String(query.pageSize));
-
-  const ordering = serializeSorting(query.sorting);
-
-  if (ordering) {
-    params.set("ordering", ordering);
-  }
-
+  serializeSorting(params, query.sorting);
   serializeFilters(params, query.filters);
-
-  const queryString = params.toString();
-
-  if (!queryString) {
-    return endpoint;
-  }
-
-  const separator = endpoint.includes("?")
-    ? endpoint.endsWith("?") || endpoint.endsWith("&")
-      ? ""
-      : "&"
-    : "?";
-
-  return `${endpoint}${separator}${queryString}`;
+  return params;
 }
 
-function serializeSorting(sorting: DataTableQuery["sorting"]): string {
-  return sorting.map(({ id, desc }) => (desc ? `-${id}` : id)).join(",");
+function serializeSorting(
+  params: URLSearchParams,
+  sorting: DataTableQuery["sorting"],
+): void {
+  if (sorting.length === 0) return;
+
+  const ordering = sorting
+    .map(({ id, desc }) => (desc ? `-${id}` : id))
+    .join(",");
+
+  if (ordering) params.set("ordering", ordering);
 }
 
 function serializeFilters(
@@ -215,32 +165,16 @@ function serializeFilters(
   for (const filter of filters) {
     const key = filter.operator === "exclude" ? `${filter.id}_not` : filter.id;
     const value = serializeFilterValue(filter.value);
-
-    if (value === null) {
-      continue;
-    }
-
-    params.set(key, value);
+    if (value !== null) params.set(key, value);
   }
 }
 
 function serializeFilterValue(value: DataTableFilter["value"]): string | null {
-  if (typeof value === "string") {
-    return value || null;
-  }
-
-  if (typeof value === "number" || typeof value === "boolean") {
-    return String(value);
-  }
-
-  if (Array.isArray(value)) {
-    return value.length === 0 ? null : value.map(String).join(",");
-  }
-
-  if (isRangeValue(value)) {
-    return serializeRange(value);
-  }
-
+  if (value === null || value === undefined) return null;
+  if (typeof value === "string") return value === "" ? null : value;
+  if (typeof value === "number" || typeof value === "boolean") return String(value);
+  if (Array.isArray(value)) return value.length === 0 ? null : value.map(String).join(",");
+  if (isRangeValue(value)) return serializeRange(value);
   return null;
 }
 
@@ -249,11 +183,7 @@ function serializeRange(
 ): string | null {
   const from = value.from === null ? "" : String(value.from);
   const to = value.to === null ? "" : String(value.to);
-
-  if (!from && !to) {
-    return null;
-  }
-
+  if (!from && !to) return null;
   return `${from}X${to}`;
 }
 

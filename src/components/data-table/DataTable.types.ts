@@ -8,6 +8,26 @@ import type {
 
 import { dataTableFeatures } from "./DataTable.features";
 
+import type {
+  DataFormCheckboxField,
+  DataFormDateField,
+  DataFormDateTimeField,
+  DataFormFieldDefinition,
+  DataFormFields,
+  DataFormMultiSelectField,
+  DataFormNumberField,
+  DataFormMode,
+  DataFormRenderFieldContext,
+  DataFormSelectField,
+  DataFormTextField,
+  DataFormTextareaField,
+  DataFormValidationContext,
+  DataFormValidator,
+  DataFormValue,
+  DataFormValues,
+} from "../data-form/DataForm.types";
+import type { CrudDataSource, CrudDetail, CrudPayload } from "../../lib/crud";
+
 export type DataTableFilterPrimitive = string | number | boolean;
 
 export type DataTableFilterType =
@@ -126,29 +146,17 @@ export interface DataTableQuery {
   filters: DataTableFilter[];
 }
 
-export type DataTableCrudPayload = Record<string, unknown>;
-export type DataTableDetail = Record<string, unknown>;
+export type DataTableCrudPayload = CrudPayload;
+export type DataTableDetail = CrudDetail;
 
-export interface DataTableDataSource<TData> {
+export interface DataTableDataSource<
+  TData,
+  TDetail extends DataTableDetail = DataTableDetail,
+> extends CrudDataSource<TData, TDetail> {
   getList(
     query: DataTableQuery,
     signal: AbortSignal,
   ): Promise<DataTableListResult<TData>>;
-
-  getOne?(id: string, signal: AbortSignal): Promise<DataTableDetail>;
-
-  create?(
-    payload: DataTableCrudPayload,
-    signal: AbortSignal,
-  ): Promise<TData>;
-
-  update?(
-    id: string,
-    payload: DataTableCrudPayload,
-    signal: AbortSignal,
-  ): Promise<TData>;
-
-  delete?(id: string, signal: AbortSignal): Promise<void>;
 }
 
 export interface DataTableCellContext<TData, TValue> {
@@ -227,112 +235,23 @@ export interface DataTableBulkAction<TValues = unknown> {
   refreshOnSuccess?: boolean;
 }
 
-export type DataTableEditorMode = "create" | "edit";
-
+export type DataTableEditorMode = Extract<DataFormMode, "create" | "edit">;
 export type DataTableEditorPrimitive = string | number | boolean;
-export type DataTableEditorValue =
-  | DataTableEditorPrimitive
-  | DataTableEditorPrimitive[]
-  | null;
-export type DataTableEditorValues = Record<string, DataTableEditorValue>;
-
-export interface DataTableEditorValidationContext {
-  mode: DataTableEditorMode;
-  values: DataTableEditorValues;
-}
-
-export type DataTableEditorValidator = (
-  value: DataTableEditorValue,
-  context: DataTableEditorValidationContext,
-) => string | undefined;
-
-interface DataTableEditorFieldBase {
-  type:
-    | "text"
-    | "textarea"
-    | "number"
-    | "select"
-    | "multiselect"
-    | "checkbox"
-    | "date"
-    | "datetime";
-  label: string;
-  field?: string;
-  description?: string;
-  placeholder?: string;
-  required?: boolean;
-  disabled?: boolean;
-  createOnly?: boolean;
-  editOnly?: boolean;
-  hidden?: boolean;
-  defaultValue?: DataTableEditorValue;
-  validate?: DataTableEditorValidator;
-}
-
-export interface DataTableEditorTextField extends DataTableEditorFieldBase {
-  type: "text";
-  minLength?: number;
-  maxLength?: number;
-}
-
-export interface DataTableEditorTextareaField
-  extends DataTableEditorFieldBase {
-  type: "textarea";
-  minLength?: number;
-  maxLength?: number;
-  rows?: number;
-}
-
-export interface DataTableEditorNumberField extends DataTableEditorFieldBase {
-  type: "number";
-  min?: number;
-  max?: number;
-  step?: number;
-}
-
-export interface DataTableEditorSelectField extends DataTableEditorFieldBase {
-  type: "select";
-  options: DataTableFilterOption[];
-}
-
-export interface DataTableEditorMultiSelectField
-  extends DataTableEditorFieldBase {
-  type: "multiselect";
-  options: DataTableFilterOption[];
-}
-
-export interface DataTableEditorCheckboxField
-  extends DataTableEditorFieldBase {
-  type: "checkbox";
-}
-
-export interface DataTableEditorDateField extends DataTableEditorFieldBase {
-  type: "date";
-  min?: string;
-  max?: string;
-}
-
-export interface DataTableEditorDateTimeField
-  extends DataTableEditorFieldBase {
-  type: "datetime";
-  min?: string;
-  max?: string;
-}
-
-export type DataTableEditorFieldDefinition =
-  | DataTableEditorTextField
-  | DataTableEditorTextareaField
-  | DataTableEditorNumberField
-  | DataTableEditorSelectField
-  | DataTableEditorMultiSelectField
-  | DataTableEditorCheckboxField
-  | DataTableEditorDateField
-  | DataTableEditorDateTimeField;
-
-export type DataTableEditorFields = Record<
-  string,
-  DataTableEditorFieldDefinition
->;
+export type DataTableEditorValue = DataFormValue;
+export type DataTableEditorValues = DataFormValues;
+export type DataTableEditorValidationContext = DataFormValidationContext;
+export type DataTableEditorValidator = DataFormValidator;
+export type DataTableEditorTextField = DataFormTextField;
+export type DataTableEditorTextareaField = DataFormTextareaField;
+export type DataTableEditorNumberField = DataFormNumberField;
+export type DataTableEditorSelectField = DataFormSelectField;
+export type DataTableEditorMultiSelectField = DataFormMultiSelectField;
+export type DataTableEditorCheckboxField = DataFormCheckboxField;
+export type DataTableEditorDateField = DataFormDateField;
+export type DataTableEditorDateTimeField = DataFormDateTimeField;
+export type DataTableEditorFieldDefinition = DataFormFieldDefinition;
+export type DataTableEditorFields = DataFormFields;
+export type DataTableEditorRenderFieldContext = DataFormRenderFieldContext;
 
 export interface DataTableEditorActionConfig {
   label?: string;
@@ -345,16 +264,6 @@ export interface DataTableEditorDeleteConfig extends DataTableEditorActionConfig
 }
 
 export type DataTableEditorCapability<TConfig> = boolean | TConfig;
-
-export interface DataTableEditorRenderFieldContext {
-  name: string;
-  field: DataTableEditorFieldDefinition;
-  mode: DataTableEditorMode;
-  value: DataTableEditorValue;
-  values: DataTableEditorValues;
-  error?: string;
-  setValue: (value: DataTableEditorValue) => void;
-}
 
 export interface DataTableEditorRenderAfterContext<TData> {
   mode: DataTableEditorMode;
@@ -369,6 +278,7 @@ export interface DataTableEditorConfig<TData> {
   edit?: DataTableEditorCapability<DataTableEditorActionConfig>;
   delete?: DataTableEditorCapability<DataTableEditorDeleteConfig>;
   fields: DataTableEditorFields;
+  /** @deprecated Prefer field.render directly in the shared DataForm field definition. */
   renderField?: Record<
     string,
     (context: DataTableEditorRenderFieldContext) => ReactNode
