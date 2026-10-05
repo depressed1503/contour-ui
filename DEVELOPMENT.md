@@ -1,10 +1,10 @@
-# Contour UI maintainer guide
+# Руководство сопровождающего Contour UI
 
-This document is for developers extending the UI library itself.
+Этот документ предназначен для разработчиков, которые расширяют саму UI-библиотеку.
 
-## Architecture
+## Архитектура
 
-The intended dependency direction is:
+Предполагаемое направление зависимостей:
 
 ```text
 Application
@@ -20,15 +20,15 @@ Contour UI primitives
 Base UI / native HTML
 ```
 
-Application-specific Axios configuration stays in the application. Contour UI receives a ready client through `createCrudApi({ axios })`.
+Application-specific Axios configuration остаётся в приложении. Contour UI получает готовый client через `createCrudApi({ axios })`.
 
-Do not import an application's `axiosConfig.ts`, environment variables, cookies, authentication logic, or business APIs from the library.
+Не импортируйте в библиотеку application-level `axiosConfig.ts`, environment variables, cookies, authentication logic или business API.
 
-## Shared CRUD datasource
+## Общий CRUD datasource
 
 `src/lib/crud.ts`
 
-Defines the transport-neutral mutation/detail contract shared by DataTable and DataForm:
+Определяет transport-neutral контракт detail/mutation, общий для DataTable и DataForm:
 
 ```text
 getOne
@@ -37,111 +37,111 @@ update
 delete
 ```
 
-`src/components/data-table/DataTable.types.ts` extends that contract with `getList`.
+`src/components/data-table/DataTable.types.ts` расширяет этот контракт методом `getList`.
 
-`src/components/data-table/createCrudApi.ts` is the DRF/Axios adapter. It serializes DataTable query state and delegates HTTP behavior to the Axios instance supplied by the host application.
+`src/components/data-table/createCrudApi.ts` — адаптер DRF/Axios. Он сериализует query state DataTable и делегирует HTTP-поведение Axios instance, который передаёт host application.
 
-Because the Axios type is structural, Contour UI does not need an Axios runtime dependency.
+Так как тип Axios используется структурно, Contour UI не нужна runtime-зависимость от Axios.
 
-## DataForm file map
+## Карта файлов DataForm
 
 `src/components/data-form/DataForm.types.ts`
 
-Public DataForm contract: modes, values, field definitions, conditions, layout, validation, parse/serialize hooks and render contexts.
+Публичный контракт DataForm: modes, values, field definitions, conditions, layout, validation, parse/serialize hooks и render contexts.
 
 `src/components/data-form/defineDataForm.ts`
 
-Identity helper for inference and public definition authoring.
+Identity helper для type inference и публичного описания definition.
 
 `src/components/data-form/DataForm.tsx`
 
-Form orchestration. Owns detail loading, TanStack Form lifecycle, submit state, server errors, create/update calls, view mode and layout composition.
+Оркестрация формы. Отвечает за detail loading, lifecycle TanStack Form, submit state, server errors, create/update calls, view mode и layout composition.
 
 `src/components/data-form/DataFormField.tsx`
 
-Maps generic field definitions to Contour UI primitives.
+Маппит generic field definitions на Contour UI primitives.
 
 `src/components/data-form/DataForm.utils.ts`
 
-Pure form logic: snake_case mapping, initial values, payload creation, conditions, validation and DRF/Axios server-error normalization.
+Чистая логика формы: snake_case mapping, initial values, создание payload, conditions, validation и нормализация DRF/Axios server errors.
 
 `src/components/data-form/DataForm.module.css`
 
-Generated-form layout and status styles.
+Стили layout и status для генерируемых форм.
 
 `src/components/data-form/index.ts`
 
-Public DataForm exports.
+Публичные экспорты DataForm.
 
-## DataTable file map
+## Карта файлов DataTable
 
 `src/components/data-table/DataTable.types.ts`
 
-Public table contracts. Editor field types are aliases to the shared DataForm field model.
+Публичные контракты таблицы. Типы editor-полей являются alias на общую field model DataForm.
 
 `src/components/data-table/useDataTable.ts`
 
-List loading, URL state, filter debounce, selection, refresh and column preferences.
+List loading, URL state, filter debounce, selection, refresh и column preferences.
 
 `src/components/data-table/DataTable.tsx`
 
-High-level composition of toolbar, engine, pagination, bulk actions and CRUD dialogs.
+Высокоуровневая композиция toolbar, engine, pagination, bulk actions и CRUD dialogs.
 
 `src/components/data-table/DataTableEngine.tsx`
 
-TanStack Table integration and table rendering.
+Интеграция TanStack Table и рендеринг таблицы.
 
 `src/components/data-table/DataTableFilterControl.tsx`
 
-Filter controls and include/exclude behavior.
+Filter controls и include/exclude behavior.
 
 `src/components/data-table/DataTableUrlState.ts`
 
-URL serialization for pagination, sorting and filters.
+URL serialization для pagination, sorting и filters.
 
 `src/components/data-table/DataTableColumnPreferences.ts`
 
-LocalStorage column preferences.
+LocalStorage-настройки колонок.
 
 `src/components/data-table/DataTableActionsMenu.tsx`
 
-Always-visible bulk Actions menu.
+Всегда видимое bulk Actions menu.
 
 `src/components/data-table/DataTableBulkActionDialog.tsx`
 
-Selected IDs vs all filtered records and optional action-specific fields.
+Выбор между selected IDs и всеми отфильтрованными записями плюс optional action-specific fields.
 
 `src/components/data-table/DataTableEditorDialog.tsx`
 
-Generated DataTable Create/Edit dialog. It uses the shared DataForm field definitions and shared field renderer.
+Сгенерированный Create/Edit dialog DataTable. Использует общие DataForm field definitions и общий renderer полей.
 
 `src/components/data-table/DataTableEditorField.tsx`
 
-Compatibility wrapper around the shared `DataFormField` renderer. It keeps support for the old `editor.renderField` extension point.
+Compatibility wrapper вокруг общего `DataFormField` renderer. Сохраняет поддержку старого extension point `editor.renderField`.
 
 `src/components/data-table/DataTableEditor.utils.ts`
 
-Compatibility wrappers around shared DataForm utility functions.
+Compatibility wrappers вокруг общих DataForm utility functions.
 
 `src/components/data-table/DataTableDeleteDialog.tsx`
 
-Generated delete confirmation.
+Сгенерированный delete confirmation.
 
 `src/components/data-table/DataTableRowActions.tsx`
 
-Generated Edit/Delete actions plus custom row actions.
+Сгенерированные Edit/Delete actions плюс custom row actions.
 
-## Adding a new form/editor field type
+## Добавление нового типа поля формы/editor
 
-Field types are now shared between standalone DataForm and DataTable editors. Do not implement the same type separately in the table.
+Типы полей теперь общие для standalone DataForm и DataTable editors. Не реализуйте один и тот же тип отдельно в таблице.
 
-Example: add `color`.
+Пример: добавляем `color`.
 
-### 1. Extend the public field union
+### 1. Расширить публичный union полей
 
-Edit `src/components/data-form/DataForm.types.ts`.
+Измените `src/components/data-form/DataForm.types.ts`.
 
-Add the discriminator to `DataFormFieldBase["type"]` and define a dedicated interface:
+Добавьте discriminator в `DataFormFieldBase["type"]` и создайте отдельный interface:
 
 ```ts
 export interface DataFormColorField extends DataFormFieldBase {
@@ -149,15 +149,15 @@ export interface DataFormColorField extends DataFormFieldBase {
 }
 ```
 
-Add it to `DataFormFieldDefinition` and export it from `src/components/data-form/index.ts`.
+Добавьте его в `DataFormFieldDefinition` и экспортируйте из `src/components/data-form/index.ts`.
 
-If consumers need the legacy DataTable-specific type name, add an alias in `DataTable.types.ts` and export that alias from `data-table/index.ts`.
+Если consumer'ам нужно legacy DataTable-specific имя типа, добавьте alias в `DataTable.types.ts` и экспортируйте его из `data-table/index.ts`.
 
-### 2. Define normalization/default behavior
+### 2. Определить normalization/default behavior
 
-Edit `src/components/data-form/DataForm.utils.ts` only if the new type needs special handling.
+Редактируйте `src/components/data-form/DataForm.utils.ts` только если новому типу нужна специальная обработка.
 
-Typical touch points:
+Типичные точки:
 
 ```text
 getDataFormDefaultValue
@@ -165,23 +165,23 @@ normalizeDataFormValue
 validateDataFormField
 ```
 
-Do not put React code in this file.
+Не размещайте React-код в этом файле.
 
-### 3. Render the field
+### 3. Отрендерить поле
 
-Edit `src/components/data-form/DataFormField.tsx` and add a `case` to `renderDefaultControl()`.
+Измените `src/components/data-form/DataFormField.tsx` и добавьте `case` в `renderDefaultControl()`.
 
-If the control is useful outside generated forms, first build a reusable primitive under:
+Если control полезен и вне generated forms, сначала создайте reusable primitive:
 
 ```text
 src/components/ui/<component>/
 ```
 
-Then use that primitive in DataForm.
+После этого используйте primitive в DataForm.
 
-### 4. Verify all three modes
+### 4. Проверить все три режима
 
-Test:
+Проверьте:
 
 ```text
 create: form -> payload
@@ -189,44 +189,44 @@ edit: detail -> form -> payload
 view: detail -> disabled/read-only presentation
 ```
 
-Also verify conditional `hidden` / `disabled` behavior if relevant.
+Также проверьте conditional `hidden` / `disabled`, если они применимы к новому типу.
 
-### 5. Add a playground example
+### 5. Добавить пример в playground
 
-Update `src/App.tsx` so the new type is easy to manually inspect.
+Обновите `src/App.tsx`, чтобы новый тип было легко проверить вручную.
 
-### 6. Update README
+### 6. Обновить README
 
-Document the public field API and at least one consumer example.
+Опишите публичный field API и добавьте хотя бы один consumer example.
 
-## Adding a new filter type
+## Добавление нового типа фильтра
 
-Main touch points:
+Основные точки изменений:
 
 1. `DataTable.types.ts` — discriminator/config type.
-2. `DataTableFilterControl.tsx` — control rendering.
+2. `DataTableFilterControl.tsx` — rendering control.
 3. `DataTableUrlState.ts` — URL parse/serialize.
-4. `createCrudApi.ts` — only if backend serialization differs from scalar/array/range behavior.
-5. `README.md` — public documentation.
+4. `createCrudApi.ts` — только если backend serialization отличается от scalar/array/range.
+5. `README.md` — публичная документация.
 
-Filter state uses frontend column ids until `useDataTable` maps them to backend field names.
+Filter state использует frontend column ids, пока `useDataTable` не преобразует их в backend field names.
 
-## Field mapping
+## Маппинг полей
 
-Shared form default:
+Общее поведение формы по умолчанию:
 
 ```text
 frontend key -> snake_case backend key
 ```
 
-Examples:
+Примеры:
 
 ```text
 backgroundColor -> background_color
 lastSeenAt      -> last_seen_at
 ```
 
-Explicit `field` always wins:
+Явный `field` всегда имеет приоритет:
 
 ```ts
 company: {
@@ -235,11 +235,11 @@ company: {
 }
 ```
 
-Keep mapping centralized in `DataForm.utils.ts`.
+Храните mapping централизованно в `DataForm.utils.ts`.
 
-## Conditional fields
+## Условные поля
 
-Conditions receive:
+Conditions получают:
 
 ```ts
 {
@@ -248,23 +248,23 @@ Conditions receive:
 }
 ```
 
-They must remain synchronous and side-effect free.
+Они должны оставаться синхронными и не иметь side effects.
 
-Do not perform HTTP requests inside `hidden` or `disabled` callbacks.
+Не выполняйте HTTP requests внутри callbacks `hidden` или `disabled`.
 
 ## Parse / serialize
 
-`parse` runs while backend detail data becomes form values.
+`parse` выполняется, когда backend detail data преобразуется в form values.
 
-`serialize` runs while form values become a mutation payload.
+`serialize` выполняется, когда form values преобразуются в mutation payload.
 
-Use these for representation conversion, not for network calls or unrelated business side effects.
+Используйте их для преобразования представления данных, а не для network calls или посторонних business side effects.
 
-## Server errors
+## Ошибки сервера
 
-Server-error parsing is centralized in `parseDataFormServerErrors()`.
+Парсинг server errors централизован в `parseDataFormServerErrors()`.
 
-It understands:
+Он понимает:
 
 ```text
 Axios error.response.data
@@ -273,11 +273,11 @@ non_field_errors
 detail
 ```
 
-When introducing another backend error convention, extend this parser rather than adding special cases to field controls.
+Если появляется новый backend error convention, расширяйте этот parser вместо добавления special cases в field controls.
 
-## createCrudApi and Axios
+## createCrudApi и Axios
 
-The application should do this:
+Приложение должно делать так:
 
 ```ts
 const api = createCrudApi({
@@ -286,35 +286,37 @@ const api = createCrudApi({
 });
 ```
 
-Do not add a global Axios singleton or application Provider inside Contour UI just to hide this dependency. One datasource object can already be shared by both DataTable and DataForm, so Axios injection happens once at API construction time.
+Не добавляйте global Axios singleton или application Provider внутрь Contour UI только для того, чтобы скрыть эту dependency.
 
-## Package build
+Один datasource object уже можно переиспользовать и в DataTable, и в DataForm, поэтому Axios injection выполняется один раз при создании API.
 
-`vite.config.ts` builds the library bundle and extracts CSS.
+## Сборка пакета
 
-`tsconfig.lib.json` emits declaration files.
+`vite.config.ts` собирает library bundle и извлекает CSS.
 
-The order in `package.json` matters:
+`tsconfig.lib.json` генерирует declaration files.
+
+Порядок в `package.json` важен:
 
 ```text
 vite build
-then
+затем
 tsc declaration build
 ```
 
-Vite clears `dist`, so running TypeScript declarations first would delete `dist/index.d.ts`.
+Vite очищает `dist`, поэтому если сначала генерировать TypeScript declarations, `dist/index.d.ts` будет удалён.
 
-`src/index.ts` is the root public entry point. Add new public packages there.
+`src/index.ts` — корневая публичная точка входа. Добавляйте новые публичные packages туда.
 
-The consumer imports styles once:
+Consumer импортирует стили один раз:
 
 ```ts
 import "@company/ui/styles.css";
 ```
 
-## Public API rule
+## Правило публичного API
 
-Prefer a small root API:
+Предпочитайте небольшой root API:
 
 ```ts
 import {
@@ -327,4 +329,4 @@ import {
 } from "@company/ui";
 ```
 
-Internal orchestration components should not be exported unless an application has a real supported use case for them.
+Внутренние orchestration components не должны экспортироваться, пока у приложения нет реального поддерживаемого use case для них.

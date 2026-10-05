@@ -1,33 +1,33 @@
 # Contour UI
 
-Internal React UI kit with declarative `DataTable` and `DataForm` for CRUD-heavy applications.
+Внутренняя React UI-библиотека с декларативными `DataTable` и `DataForm` для приложений с большим количеством CRUD-сценариев.
 
-The main goal is to let application developers describe backend fields and UI behavior in configuration instead of rebuilding forms, filters, pagination and dialogs for every endpoint.
+Главная цель — позволить разработчикам приложения описывать backend-поля и поведение UI конфигурацией, вместо того чтобы заново собирать формы, фильтры, пагинацию и диалоги для каждого endpoint.
 
-## Install from local package
+## Установка из локального пакета
 
-Build and pack the library:
+Собрать и упаковать библиотеку:
 
 ```bash
 npm install
 npm run pack:local
 ```
 
-Install the generated package in another application:
+Установить сгенерированный пакет в другое приложение:
 
 ```bash
 npm install ./company-ui-0.1.0.tgz
 ```
 
-Import the library styles once in the host application, usually in `main.tsx`:
+Один раз импортировать стили библиотеки в host-приложении, обычно в `main.tsx`:
 
 ```ts
 import "@company/ui/styles.css";
 ```
 
-## Public UI components
+## Публичные UI-компоненты
 
-The root package exports the existing Contour UI primitives:
+Корневой пакет экспортирует существующие Contour UI primitives:
 
 ```tsx
 import {
@@ -48,11 +48,11 @@ import {
 } from "@company/ui";
 ```
 
-## Axios and CRUD data access
+## Axios и CRUD-доступ к данным
 
-Contour UI does not import your application-specific Axios config. Pass the Axios instance created by the host application into `createCrudApi`.
+Contour UI не импортирует application-specific Axios config. Передайте Axios instance, созданный host-приложением, в `createCrudApi`.
 
-This means your existing `baseURL`, CSRF settings, cookies and interceptors remain application-owned.
+Это позволяет оставить `baseURL`, CSRF-настройки, cookies и interceptors на стороне приложения.
 
 ```ts
 import Axios from "@/api/axiosConfig";
@@ -73,20 +73,20 @@ export const assetApi = createCrudApi<Asset>({
 });
 ```
 
-With an Axios `baseURL` such as:
+Если у Axios задан `baseURL`, например:
 
 ```text
 https://host/sm_portal_api/
 ```
 
-use relative endpoint paths without a leading slash:
+используйте относительные endpoint-пути без начального `/`:
 
 ```text
 assets/
 assets/42/
 ```
 
-`createCrudApi` supports:
+`createCrudApi` поддерживает:
 
 ```text
 GET    list
@@ -96,7 +96,7 @@ PATCH  update
 DELETE delete
 ```
 
-Custom routes can be supplied:
+Можно передавать нестандартные routes:
 
 ```ts
 createCrudApi<Asset>({
@@ -111,13 +111,13 @@ createCrudApi<Asset>({
 });
 ```
 
-The same datasource can be reused by both `DataTable` and `DataForm`. This is the preferred pattern: Axios is injected once into the datasource factory, not passed through every UI component.
+Один и тот же datasource можно переиспользовать и в `DataTable`, и в `DataForm`. Это предпочтительный вариант: Axios инжектится один раз при создании datasource, а не передаётся в каждый UI-компонент.
 
 ## DataForm
 
-`DataForm` is a generated form driven by a field definition.
+`DataForm` — генерируемая форма на основе декларативного описания полей.
 
-Supported modes:
+Поддерживаемые режимы:
 
 ```text
 create
@@ -125,9 +125,9 @@ edit
 view
 ```
 
-For `edit` and `view`, the form loads detail data with `datasource.getOne(id)`.
+Для `edit` и `view` форма загружает detail-данные через `datasource.getOne(id)`.
 
-### Basic definition
+### Базовое описание
 
 ```tsx
 import {
@@ -161,35 +161,24 @@ const assetForm = defineDataForm<Asset>({
 Create:
 
 ```tsx
-<DataForm
-  definition={assetForm}
-  mode="create"
-/>
+<DataForm definition={assetForm} mode="create" />
 ```
 
 Edit:
 
 ```tsx
-<DataForm
-  definition={assetForm}
-  mode="edit"
-  id={42}
-/>
+<DataForm definition={assetForm} mode="edit" id={42} />
 ```
 
 View:
 
 ```tsx
-<DataForm
-  definition={assetForm}
-  mode="view"
-  id={42}
-/>
+<DataForm definition={assetForm} mode="view" id={42} />
 ```
 
-## DataForm field types
+## Типы полей DataForm
 
-Built-in field types:
+Встроенные типы:
 
 ```text
 text
@@ -202,7 +191,7 @@ date
 datetime
 ```
 
-Example:
+Пример:
 
 ```ts
 fields: {
@@ -257,16 +246,16 @@ fields: {
 }
 ```
 
-### Backend field mapping
+### Маппинг backend-полей
 
-The frontend definition key is converted to snake_case by default:
+Ключ frontend-definition по умолчанию преобразуется в `snake_case`:
 
 ```text
 backgroundColor -> background_color
 lastSeenAt      -> last_seen_at
 ```
 
-Use `field` when the backend name is different:
+Если имя backend-поля отличается, используйте `field`:
 
 ```ts
 company: {
@@ -277,9 +266,9 @@ company: {
 }
 ```
 
-### Conditional fields
+### Условные поля
 
-`hidden` and `disabled` may be booleans or functions of current form values:
+`hidden` и `disabled` могут быть boolean или функциями от текущих значений формы:
 
 ```ts
 description: {
@@ -320,13 +309,13 @@ const definition = defineDataForm({
 });
 ```
 
-On narrow screens the grid collapses to one column automatically.
+На узких экранах grid автоматически схлопывается в одну колонку.
 
-### Validation
+### Валидация
 
-Built-in validation includes `required`, string length and numeric `min/max`.
+Встроенная валидация включает `required`, длину строк и числовые `min/max`.
 
-Use `validate` for business-specific synchronous validation:
+Для бизнес-валидации используйте синхронный `validate`:
 
 ```ts
 priority: {
@@ -342,26 +331,24 @@ priority: {
 }
 ```
 
-### Parse and serialize
+### Parse и serialize
 
-Use `parse` to transform detail data into form state and `serialize` to transform form state into the backend payload.
+`parse` преобразует detail-данные backend в form state.
+
+`serialize` преобразует form state в mutation payload.
 
 ```ts
 price: {
   type: "number",
   label: "Price",
-
-  parse: (backendValue) =>
-    Number(backendValue) / 100,
-
-  serialize: (formValue) =>
-    Number(formValue) * 100,
+  parse: (backendValue) => Number(backendValue) / 100,
+  serialize: (formValue) => Number(formValue) * 100,
 }
 ```
 
-### Custom field renderer
+### Кастомный renderer поля
 
-A field can replace its default control:
+Поле может заменить стандартный control:
 
 ```tsx
 priority: {
@@ -369,7 +356,6 @@ priority: {
   label: "Priority",
   min: 1,
   max: 5,
-
   render: ({ value, disabled, setValue }) => (
     <Input
       type="range"
@@ -377,15 +363,13 @@ priority: {
       max={5}
       value={Number(value ?? 3)}
       disabled={disabled}
-      onChange={(event) =>
-        setValue(Number(event.target.value))
-      }
+      onChange={(event) => setValue(Number(event.target.value))}
     />
   ),
 }
 ```
 
-Use `renderAfter` for previews or additional blocks that depend on the whole form:
+Для preview или дополнительных блоков, зависящих от всей формы, используйте `renderAfter`:
 
 ```tsx
 renderAfter: ({ values }) => (
@@ -393,9 +377,9 @@ renderAfter: ({ values }) => (
 )
 ```
 
-### Server errors
+### Ошибки сервера
 
-`DataForm` understands DRF-style error bodies such as:
+`DataForm` понимает DRF-style error body:
 
 ```json
 {
@@ -406,13 +390,15 @@ renderAfter: ({ values }) => (
 }
 ```
 
-Errors for known backend fields are shown next to the corresponding form field. `detail`, `non_field_errors`, and unknown keys are shown as form-level errors.
+Ошибки известных backend-полей отображаются рядом с соответствующим полем формы.
 
-The parser also recognizes Axios errors through `error.response.data`.
+`detail`, `non_field_errors` и неизвестные ключи отображаются как ошибки уровня формы.
+
+Парсер также распознаёт Axios errors через `error.response.data`.
 
 ## DataTable
 
-The existing table API remains definition-driven:
+Существующий API таблицы остаётся definition-driven:
 
 ```tsx
 const assetTable = defineDataTable<Asset>({
@@ -433,31 +419,31 @@ const assetTable = defineDataTable<Asset>({
 <DataTable definition={assetTable} />
 ```
 
-The table supports server pagination, sorting, filters, URL state, column visibility, selection, bulk actions, row actions and generated CRUD dialogs.
+Таблица поддерживает server pagination, sorting, filters, URL state, column visibility, selection, bulk actions, row actions и генерируемые CRUD-dialogs.
 
-### Shared form fields with DataTable editor
+### Общие поля формы и DataTable editor
 
-`DataTable.editor.fields` and standalone `DataForm.fields` now use the same field definition model.
+`DataTable.editor.fields` и standalone `DataForm.fields` используют одну и ту же модель field definition.
 
-That means a new generic field type should be implemented once in the DataForm field layer and then becomes available to generated DataTable editors as well.
+Это означает, что новый общий тип поля нужно реализовать один раз в DataForm field layer, после чего он становится доступен и в сгенерированных DataTable editors.
 
-Legacy `editor.renderField` remains available for compatibility, but new definitions should prefer field-level `render`.
+Legacy `editor.renderField` остаётся для обратной совместимости, но в новых definition лучше использовать field-level `render`.
 
 ## Playground
 
-Run the local playground:
+Запустить локальный playground:
 
 ```bash
 npm run dev
 ```
 
-`src/App.tsx` contains examples of the existing Contour UI primitives, `DataForm` in Create/Edit/View modes, conditional fields, validation, custom rendering, and the existing `DataTable` demo.
+`src/App.tsx` содержит примеры существующих Contour UI primitives, `DataForm` в режимах Create/Edit/View, conditional fields, validation, custom rendering и demo `DataTable`.
 
-## Building the npm package
+## Сборка npm-пакета
 
-The library entry point is `src/index.ts`.
+Точка входа библиотеки — `src/index.ts`.
 
-Build:
+Сборка:
 
 ```bash
 npm run build:lib
@@ -469,13 +455,13 @@ Pack:
 npm run pack:local
 ```
 
-The build intentionally runs Vite before declaration generation so Vite cannot erase the generated `.d.ts` files:
+Сборка намеренно запускает Vite до генерации declaration-файлов, чтобы Vite не удалил сгенерированные `.d.ts`:
 
 ```text
 vite build -> tsc declarations
 ```
 
-Expected output includes:
+Ожидаемый результат:
 
 ```text
 dist/index.js
